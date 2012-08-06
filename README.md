@@ -1,4 +1,4 @@
-geonews
+GeoNews
 =======
 
-Mapping news from Russian mass media to map
+Mapping news from Russian mass media to map.
