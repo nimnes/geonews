@@ -5,6 +5,8 @@ gem 'bootstrap-sass', '2.0.0.0'
 gem 'feedzirra'
 gem 'will_paginate'
 gem 'bootstrap-will_paginate'
+gem 'algorithms'
+gem 'unicode_utils'
 
 # Bundle edge Rails instead:
 # gem 'rails', :git => 'git://github.com/rails/rails.git'
