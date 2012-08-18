@@ -1,0 +1,28 @@
+<% provide(:title, 'Лемматизатор') %>
+<h1>Лемматизатор</h1>
+<%= form_tag do %>
+	<textarea name="input_text" class="span12" id="input-textarea" rows="8" placeholder="Введите текст..."><%= @input_text %></textarea>
+	<button type="submit" class="btn">Привести к нормальной форме</button>
+<% end %>
+
+<% if @normalized_text.any? %>
+<h2>Результат</h2>
+<table class="table table-striped table-bordered table-condensed">
+	<thead>
+		<tr>
+			<th>Слово</th>
+			<th>Лемма</th>
+			<th>Аннотация</th>
+		</tr>
+	</thead>
+	<% @normalized_text.each do |sentence| %>
+		<% sentence.each do |s| %>
+			<tr>
+			<% s.each do |w| %>
+				<td><%= w %></td>
+			<% end %>
+			</tr>
+		<% end %>
+	<% end %>
+</table>
+<% end %>

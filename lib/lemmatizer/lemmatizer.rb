@@ -19,17 +19,25 @@ class Lemmatizer
     }
 
     def initialize
-        puts "initialize lemmatizer"
         @@morph = Morph.new()
-        @@morph.load_dictionary("./dicts/morphs.mrd")
+        @@morph.load_dictionary("./dicts/morphs.mrd", "./dicts/rgramtab.tab")
     end
 
     def define_location(text)
         sentences = parse_sentences(text)
+        normalized_text = []
 
         sentences.each do |s|
             words = parse_words(s)
+
+            # define normal forms for all words in sentence
+            # format is array of hashes { "word" => word, "normal_form" => normal_form }
+            normal_sentence = @@morph.normalize_words(words)
+
+            normalized_text << normal_sentence
         end
+
+        return normalized_text
     end
 
     def parse_sentences(text)
@@ -52,8 +60,9 @@ class Lemmatizer
 
     def parse_words(sentence)
         # remove punctuation
-        sentence = sentence.gsub(/[.?!:;,"'`~-—]/, "")
+        sentence = sentence.gsub(/[\.\?!:;,"'`~—]/, "")
         words = sentence.split(/\s+/)
+        return words
     end
 
     def print_rule(rule_id)

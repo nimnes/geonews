@@ -1,15 +1,28 @@
 require "unicode_utils/upcase"
+require "benchmark"
 
 class Morph
     @@rules = []
-    @@logs = []
     @@prefixes = []
     @@lemmas = Containers::Trie.new
+    @@gramtab = {}
 
-    def load_dictionary(file_name)
-        puts "loading dictionary: " + file_name
-        dictionary_file = File.new(file_name, "r")
-        read_dictionary(dictionary_file)
+    def load_dictionary(dict_file, gram_file)
+        puts "loading dictionary " + dict_file + " with gramtab " + gram_file + "..."
+
+        dictionary_file = File.new(dict_file, "r")
+        gramtab_file = File.new(gram_file, "r")
+
+        time = Benchmark.realtime do
+            read_dictionary(dictionary_file)
+        end
+        puts "dictionary was loaded in #{"%.3f" % time} seconds"
+
+        time = Benchmark.realtime do
+            read_gramtab(gramtab_file)
+        end
+        puts "gramtab file was loaded in #{"%.3f" % time} seconds"
+
     end
 
     def read_section(file)
@@ -108,12 +121,32 @@ class Morph
         load_logs(file)
         load_prefixes(file)
         load_lemmas(file)
-        puts "dictionary was successfully loaded."
+    end
+
+    def read_gramtab(file)
+        while (line = file.gets)
+            line = line.strip()
+            if line.starts_with?('//') || line.blank?
+                next
+            end
+
+            grams = line.split()
+            if grams.length == 3
+                grams[3] = ''
+            end
+
+            ancode, letter, type, info = grams
+            @@gramtab[ancode] = [type, info, letter]
+        end
     end
 
     # get normal form of a word
     def normalize(word)
         word_str = word
+
+        # try to found word in dictionary
+        # on each iteration we cut word by 1 letter
+        # i.e. Russia, Russi, Russ...
         while !word_str.blank? do
             if @@lemmas.has_key?(UnicodeUtils.upcase(word_str))
                 annotations = @@lemmas.get(UnicodeUtils.upcase(word_str))
@@ -122,16 +155,39 @@ class Morph
 
                     suffixes.each do |suffix|
                         if (UnicodeUtils.upcase(word_str) + suffix[0] == UnicodeUtils.upcase(word))
-                            puts "Normal form is " + UnicodeUtils.upcase(word_str) + suffixes[0][0]
-                            return word_str + suffixes[0][0]
+                            gram_info = @@gramtab[annotation[2]]
+                            return [UnicodeUtils.upcase(word_str) + suffixes[0][0], gram_info]
                         end
                     end
                 end
-                return
-            else
-                word_str = word_str[0...word_str.length - 1]
+            end
+            word_str = word_str[0...word_str.length - 1]
+        end
+
+        # try to found word in special lemma '#'
+        annotations = @@lemmas.get('#')
+        annotations.each do |annotation|
+            suffixes = @@rules[annotation[0].to_i]
+        
+            suffixes.each do |suffix|
+                if (suffix[0] == UnicodeUtils.upcase(word))
+                    gram_info = @@gramtab[annotation[2]]
+                    return [suffixes[0][0], gram_info]
+                end
             end
         end
+
+        return ["", ""]
+    end
+
+    def normalize_words(words)
+        normal_words = []
+        words.each do |w|
+            normal_form = normalize(w)
+            h = [w, normal_form[0], normal_form[1]]
+            normal_words << h
+        end
+        return normal_words
     end
 
     def get_rule(rule_id)

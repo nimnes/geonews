@@ -1,14 +1,15 @@
 <header class="navbar navbar-fixed-top">
-  <div class="navbar-inner">
+<div class="navbar-inner">
     <div class="container">
-      <%= link_to "geonews", root_path, id: "logo" %>
-      <nav>
-        <ul class="nav pull-right">
-          <li><%= link_to "Home",    root_path %></li>
-          <li><%= link_to "News",    news_path %></li>
-          <li><%= link_to "Help",    help_path %></li>
-        </ul>
-      </nav>
+        <%= link_to "geonews", root_path, id: "logo" %>
+        <nav>
+            <ul class="nav pull-right">
+                <li><%= link_to "Главная",    root_path %></li>
+                <li><%= link_to "Новости",    news_path %></li>
+                <li><%= link_to "Лемматизатор", lemmatizer_path %></li>
+                <li><%= link_to "Помощь",    help_path %></li>
+            </ul>
+        </nav>
     </div>
-  </div>
+</div>
 </header>
