@@ -3,14 +3,16 @@ require "unicode_utils/upcase"
 require "benchmark" 
 
 class Morph
-    @@rules = []
-    @@rule_frequencies = []
-    @@prefixes = []
-    @@lemmas = Containers::Trie.new
-    @@endings = Containers::Trie.new
-    @@gramtab = {}
+    def initialize
+      @rules = []
+      @rule_frequencies = []
+      @prefixes = []
+      @lemmas = Containers::Trie.new
+      @endings = Containers::Trie.new
+      @gramtab = {}
 
-    @@PRODUCTIVE_CLASSES = ["NOUN", "С", "Г", 'ИНФИНИТИВ', 'VERB', 'ADJECTIVE', 'П', 'Н']
+      @productive_classes = ["NOUN", "С", "Г", 'ИНФИНИТИВ', 'VERB', 'ADJECTIVE', 'П', 'Н']
+    end
 
     def load_dictionary(dict_file, gram_file)
         puts "[INFO] loading dictionary " + dict_file + " with gramtab " + gram_file + "..."
@@ -34,7 +36,7 @@ class Morph
         section_length = file.gets.to_i
         section_lines = []
 
-        for i in 1..section_length
+        (1..section_length).each do |i|
             section_lines[i - 1] = file.gets
         end
 
@@ -50,15 +52,15 @@ class Morph
         section_lines = read_section(file)
 
         rule_id = 0
-        section_lines.each do |line| 
+        section_lines.each do |line|
             line_rules = line.strip().split('%')
 
             tmp_rules = []
-            line_rules.each do |rule| 
+            line_rules.each do |rule|
                 if rule.blank?
                     next
                 end
-                
+
                 rule_parts = rule.split('*')
 
                 if rule_parts.length == 2
@@ -66,28 +68,26 @@ class Morph
                 end
 
                 suffix = rule_parts[0]
-                ancode = rule_parts[1]
-                prefix = rule_parts[2]
 
                 # create list of possible endings for prediction
                 if !suffix.blank?
-                    if @@endings.has_key?(suffix)
-                        @@endings[suffix] << rule_id
+                    if @endings.has_key?(suffix)
+                        @endings[suffix] << rule_id
                     else
-                        @@endings[suffix] = []
-                        @@endings[suffix] << rule_id
+                        @endings[suffix] = []
+                        @endings[suffix] << rule_id
                     end
                 end
 
                 tmp_rules << rule_parts
             end
 
-            @@rules[rule_id] = tmp_rules
-            @@rule_frequencies[rule_id] = 0
+            @rules[rule_id] = tmp_rules
+            @rule_frequencies[rule_id] = 0
             rule_id += 1
         end
 
-        puts "[INFO] " + @@rules.length.to_s + " rules loaded."
+        puts "[INFO] " + @rules.length.to_s + " rules loaded."
     end
 
     def load_accents(file)
@@ -102,10 +102,10 @@ class Morph
         section_lines = read_section(file)
 
         section_lines.each do |line|
-            @@prefixes << line.strip()
+            @prefixes << line.strip()
         end
 
-        puts "[INFO] " + @@prefixes.length.to_s + " prefixes loaded."
+        puts "[INFO] " + @prefixes.length.to_s + " prefixes loaded."
     end
 
     def load_lemmas(file)
@@ -120,17 +120,17 @@ class Morph
             prefix = lemma_parts[3]
             ancode = lemma_parts[4]
 
-            if @@lemmas.has_key?(base)
-                @@lemmas[base] << [rule_id, prefix, ancode]
+            if @lemmas.has_key?(base)
+                @lemmas[base] << [rule_id, prefix, ancode]
             else
-                @@lemmas[base] = []
-                @@lemmas[base] << [rule_id, prefix, ancode]
+                @lemmas[base] = []
+                @lemmas[base] << [rule_id, prefix, ancode]
             end
 
             # count frequencies of rules for future lemma prediction
-            @@rule_frequencies[rule_id.to_i] += 1 
+            @rule_frequencies[rule_id.to_i] += 1
         end
-        
+
         puts "[INFO] " + section_lines.length.to_s + " lemmas loaded."
     end
 
@@ -145,7 +145,7 @@ class Morph
     def read_gramtab(file)
         while (line = file.gets)
             line = line.strip()
-            if line.starts_with?('//') || line.blank?
+            if line.start_with?('//') || line.blank?
                 next
             end
 
@@ -155,7 +155,7 @@ class Morph
             end
 
             ancode, letter, type, info = grams
-            @@gramtab[ancode] = [type, info, letter]
+            @gramtab[ancode] = [type, info, letter]
         end
     end
 
@@ -167,15 +167,15 @@ class Morph
         # on each iteration we cut word by 1 letter
         # i.e. Russia, Russi, Russ...
         while !word_str.blank? do
-            if @@lemmas.has_key?(UnicodeUtils.upcase(word_str))
-                annotations = @@lemmas.get(UnicodeUtils.upcase(word_str))
+            if @lemmas.has_key?(UnicodeUtils.upcase(word_str))
+                annotations = @lemmas.get(UnicodeUtils.upcase(word_str))
                 annotations.each do |annotation|
-                    suffixes = @@rules[annotation[0].to_i]
+                    suffixes = @rules[annotation[0].to_i]
 
                     suffixes.each do |suffix|
                         if (UnicodeUtils.upcase(word_str) + suffix[0] == UnicodeUtils.upcase(word))
-                            gram_info = @@gramtab[annotation[2]]
-                            return [UnicodeUtils.upcase(word_str) + suffixes[0][0], gram_info]                            
+                            gram_info = @gramtab[annotation[2]]
+                            return [UnicodeUtils.upcase(word_str) + suffixes[0][0], gram_info]
                         end
                     end
                 end
@@ -184,13 +184,13 @@ class Morph
         end
 
         # try to found word in special lemma '#'
-        annotations = @@lemmas.get('#')
+        annotations = @lemmas.get('#')
         annotations.each do |annotation|
-            suffixes = @@rules[annotation[0].to_i]
-        
+            suffixes = @rules[annotation[0].to_i]
+
             suffixes.each do |suffix|
                 if (suffix[0] == UnicodeUtils.upcase(word))
-                    gram_info = @@gramtab[annotation[2]]
+                    gram_info = @gramtab[annotation[2]]
                     return [suffixes[0][0], gram_info]
                 end
             end
@@ -203,21 +203,21 @@ class Morph
 
             # try to found 5,4,3... suffixes of our word in list of endings
             # if we found it then return predicted normal form of word
-            if !word_suffix.nil? and @@endings.has_key?(UnicodeUtils.upcase(word_suffix))
-                possible_rules = @@endings.get(UnicodeUtils.upcase(word_suffix))
+            if !word_suffix.nil? and @endings.has_key?(UnicodeUtils.upcase(word_suffix))
+                possible_rules = @endings.get(UnicodeUtils.upcase(word_suffix))
 
                 max_frequency = 0
                 best_rule = 0
 
-                # search for most popular rule 
+                # search for most popular rule
                 possible_rules.each do |rule_id|
-                    if @@rule_frequencies[rule_id] > max_frequency 
+                    if @rule_frequencies[rule_id] > max_frequency
 
-                        @@rules[rule_id].each do |prule|
+                        @rules[rule_id].each do |prule|
                             # predict only productive classes (noun, verb, adjective, adverb)
-                            if prule[0] == UnicodeUtils.upcase(word_suffix) and 
-                                @@PRODUCTIVE_CLASSES.include?(@@gramtab[prule[1]][0])
-                                max_frequency = @@rule_frequencies[rule_id]
+                            if prule[0] == UnicodeUtils.upcase(word_suffix) and
+                                @productive_classes.include?(@gramtab[prule[1]][0])
+                                max_frequency = @rule_frequencies[rule_id]
                                 best_rule = rule_id
                                 break
                             end
@@ -225,8 +225,8 @@ class Morph
                     end
                 end
 
-                predicted_word = word[0..-(i + 1)] + @@rules[best_rule][0][0]
-                gram_info = @@gramtab[@@rules[best_rule][0][1]]
+                predicted_word = word[0..-(i + 1)] + @rules[best_rule][0][0]
+                gram_info = @gramtab[@rules[best_rule][0][1]]
 
                 if max_frequency > 0
                     return [UnicodeUtils.upcase(predicted_word), gram_info]
@@ -248,10 +248,10 @@ class Morph
     end
 
     def get_rule(rule_id)
-        return @@rules[rule_id]
+        return @rules[rule_id]
     end
 
     def get_lemma(lemma)
-        puts @@lemmas.get(lemma)
+        puts @lemmas.get(lemma)
     end
 end
