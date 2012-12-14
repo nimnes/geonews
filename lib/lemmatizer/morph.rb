@@ -1,17 +1,17 @@
 # encoding: utf-8
 require "unicode_utils/upcase"
-require "benchmark" 
+require "benchmark"
 
 class Morph
     def initialize
-      @rules = []
-      @rule_frequencies = []
-      @prefixes = []
-      @lemmas = Containers::Trie.new
-      @endings = Containers::Trie.new
-      @gramtab = {}
+        @rules = []
+        @rule_frequencies = []
+        @prefixes = []
+        @lemmas = Containers::Trie.new
+        @endings = Containers::Trie.new
+        @gramtab = {}
 
-      @productive_classes = ["NOUN", "С", "Г", 'ИНФИНИТИВ', 'VERB', 'ADJECTIVE', 'П', 'Н']
+        @productive_classes = ["NOUN", "С", "Г", 'ИНФИНИТИВ', 'VERB', 'ADJECTIVE', 'П', 'Н']
     end
 
     def load_dictionary(dict_file, gram_file)
@@ -175,7 +175,12 @@ class Morph
                     suffixes.each do |suffix|
                         if UnicodeUtils.upcase(word_str) + suffix[0] == UnicodeUtils.upcase(word)
                             gram_info = @gramtab[annotation[2]]
-                            return [UnicodeUtils.upcase(word_str) + suffixes[0][0], gram_info]
+                            if gram_info.nil? or gram_info[1].nil?
+                                is_location = false
+                            else
+                                is_location = gram_info[1].include?('лок')
+                            end
+                            return [UnicodeUtils.upcase(word_str) + suffixes[0][0], gram_info, is_location]
                         end
                     end
                 end
@@ -191,7 +196,12 @@ class Morph
             suffixes.each do |suffix|
                 if suffix[0] == UnicodeUtils.upcase(word)
                     gram_info = @gramtab[annotation[2]]
-                    return [suffixes[0][0], gram_info]
+                    if gram_info.nil? or gram_info[1].nil?
+                        is_location = false
+                    else
+                        is_location = gram_info[1].include?('лок')
+                    end
+                    return [suffixes[0][0], gram_info, is_location]
                 end
             end
         end
@@ -227,9 +237,14 @@ class Morph
 
                 predicted_word = word[0..-(i + 1)] + @rules[best_rule][0][0]
                 gram_info = @gramtab[@rules[best_rule][0][1]]
+                if gram_info.nil? or gram_info[1].nil?
+                    is_location = false
+                else
+                    is_location = gram_info[1].include?('лок')
+                end
 
                 if max_frequency > 0
-                    return [UnicodeUtils.upcase(predicted_word), gram_info]
+                    return [UnicodeUtils.upcase(predicted_word), gram_info, is_location]
                 end
             end
         end
@@ -241,9 +256,14 @@ class Morph
         normal_words = []
         words.each do |w|
             normal_form = normalize(w)
-            h = [w, normal_form[0], normal_form[1]]
+            h = { word:  w,
+                  normal_form: normal_form[0],
+                  annotation: normal_form[1],
+                  is_location: normal_form[2]
+                }
             normal_words << h
         end
+
         normal_words
     end
 

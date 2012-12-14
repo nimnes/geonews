@@ -24,19 +24,23 @@ class Lemmatizer
 
     def define_location(text)
         sentences = parse_sentences(text)
-        normalized_text = []
+        locations = []
 
         sentences.each do |s|
             words = parse_words(s)
 
             # define normal forms for all words in sentence
-            # format is array of hashes { "word" => word, "normal_form" => normal_form }
+            # format is array of hashes { "word" => word, "normal_form" => normal_form, "is_location" => true|false }
             normal_sentence = @morph.normalize_words(words)
 
-            normalized_text << normal_sentence
+            normal_sentence.each do |w|
+                if w[:is_location]
+                    locations << [w[:word], w[:normal_form], w[:annotation]]
+                end
+            end
         end
 
-        normalized_text
+        locations
     end
 
     def parse_sentences(text)

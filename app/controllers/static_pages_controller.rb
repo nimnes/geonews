@@ -1,32 +1,32 @@
 require "./lib/lemmatizer/lemmatizer"
 
 class StaticPagesController < ApplicationController
-  @@lemmatizer = Lemmatizer.new
+    @@lemmatizer = Lemmatizer.new
 
-  def home
-    render :action => "home", :layout => 'map'
-  end
-
-  def news
- 	  @news = FeedEntry.paginate(page: params[:page], per_page: 50)
-  end
-
-  def lemmatizer
-    if !params[:input_text].blank?
-      @normalized_text = @@lemmatizer.define_location(params[:input_text])
-      @input_text = params[:input_text]
-    else
-      @input_text = ""
-      @normalized_text = []
+    def home
+        render :action => "home", :layout => 'map'
     end
-  end
 
-  def help
-  end
+    def news
+        @news = FeedEntry.paginate(page: params[:page], per_page: 50)
+    end
 
-  def about
-  end
+    def lemmatizer
+        if params[:input_text].blank?
+            @input_text = ""
+            @locations = []
+        else
+            @locations = @@lemmatizer.define_location(params[:input_text])
+            @input_text = params[:input_text]
+        end
+    end
 
-  def contact
-  end
+    def help
+    end
+
+    def about
+    end
+
+    def contact
+    end
 end
