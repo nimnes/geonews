@@ -1,3 +1,58 @@
-<div class="center hero-unit">
-	<h1>Welcome to the GeoNews</h1>
+
+<script src="http://api-maps.yandex.ru/2.0/?load=package.full&lang=ru-RU" type="text/javascript"></script>
+<script type="text/javascript">
+        // Как только будет загружен API и готов DOM, выполняем инициализацию
+        ymaps.ready(init);
+
+        function init () {
+            var myMap = new ymaps.Map("map", {
+                    center: [56.45, 37.64],
+                    zoom: 5
+                }),
+
+                // Создаем метки для городов Москва и Санкт-Петербург.
+                // Задаем для них описания: название города, расположение и численность людей.
+                myPlacemarkMsc = new ymaps.Placemark([55.8, 37.6], {
+                    title: 'В Москве проходят соревнования по горным лыжам и сноуборду на песке',
+                    summary: 'В Москве проходят соревнования по горным лыжам и сноуборду на песке. Спортсмены соревнуются на склоне песчаного карьера в подмосковных Котельниках.'
+                }),
+
+                myPlacemarkSpb = new ymaps.Placemark([59.930, 30.347], {
+                    title: 'Санкт-Петербург',
+                    summary: 'Город расположен на северо-западе Российской Федерации, <br />в пределах Приневской низменности, ' +
+                        'на прилегающем к устью реки Невы побережье Невской губы <br />Финского залива и на многочисленных островах Невской дельты.'
+                }),
+
+                // Создаем коллекцию, в которую будем добавлять метки
+                myCollection = new ymaps.GeoObjectCollection();
+
+            //Добавляем метки в коллекцию геообъектов.
+            myCollection
+                .add(myPlacemarkMsc)
+                .add(myPlacemarkSpb);
+
+            // Создаем шаблон для отображения контента балуна
+            var myBalloonLayout = ymaps.templateLayoutFactory.createClass(
+                '<h4>$[properties.title]</h4>' +
+                '<p>$[properties.summary]</p>'
+            );
+
+            // Помещаем созданный шаблон в хранилище шаблонов. Теперь наш шаблон доступен по ключу 'my#superlayout'.
+            ymaps.layout.storage.add('my#superlayout', myBalloonLayout);
+
+            // Задаем наш шаблон для балунов геобъектов коллекции.
+            myCollection.options.set({
+                balloonContentBodyLayout:'my#superlayout',
+                // Максимальная ширина балуна в пикселах
+                balloonMaxWidth: 300
+            });
+
+            // Добавляем коллекцию геообъектов на карту.
+            myMap.geoObjects.add(myCollection);
+            myMap.controls.add('zoomControl').add('smallZoomControl', {right: 5, top: 75})
+        }
+    </script>
+
+<div id="map" style="width: 100%; height: 560px; border: 1px dashed">
+	
 </div>

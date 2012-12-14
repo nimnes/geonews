@@ -4,6 +4,7 @@ class StaticPagesController < ApplicationController
   @@lemmatizer = Lemmatizer.new
 
   def home
+    render :action => "home", :layout => 'map'
   end
 
   def news

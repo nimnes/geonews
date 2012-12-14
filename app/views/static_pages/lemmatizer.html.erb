@@ -16,10 +16,16 @@
 		</tr>
 	</thead>
 	<% @normalized_text.each do |sentence| %>
-		<% sentence.each do |s| %>
+		<% sentence.each do |word| %>
+			<% if !word[2].nil? and !word[2][1].nil? and (word[2][1].include?('лок') or word[2][1].include?('но')) %>
+			<% @td_style = 'background-color: #90EE90;' %>
+			<% else %>
+			<% @td_style = '' %>
+			<% end %>
+
 			<tr>
-			<% s.each do |w| %>
-				<td><%= w %></td>
+			<% word.each do |el| %>
+				<td style="<%= @td_style %>"><%= el %></td>
 			<% end %>
 			</tr>
 		<% end %>

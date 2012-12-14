@@ -1,14 +1,19 @@
+# encoding: utf-8
 require "unicode_utils/upcase"
-require "benchmark"
+require "benchmark" 
 
 class Morph
     @@rules = []
+    @@rule_frequencies = []
     @@prefixes = []
     @@lemmas = Containers::Trie.new
+    @@endings = Containers::Trie.new
     @@gramtab = {}
 
+    @@PRODUCTIVE_CLASSES = ["NOUN", "С", "Г", 'ИНФИНИТИВ', 'VERB', 'ADJECTIVE', 'П', 'Н']
+
     def load_dictionary(dict_file, gram_file)
-        puts "loading dictionary " + dict_file + " with gramtab " + gram_file + "..."
+        puts "[INFO] loading dictionary " + dict_file + " with gramtab " + gram_file + "..."
 
         dictionary_file = File.new(dict_file, "r")
         gramtab_file = File.new(gram_file, "r")
@@ -16,12 +21,12 @@ class Morph
         time = Benchmark.realtime do
             read_dictionary(dictionary_file)
         end
-        puts "dictionary was loaded in #{"%.3f" % time} seconds"
+        puts "[INFO] dictionary was loaded in #{"%.3f" % time} seconds"
 
         time = Benchmark.realtime do
             read_gramtab(gramtab_file)
         end
-        puts "gramtab file was loaded in #{"%.3f" % time} seconds"
+        puts "[INFO] gramtab file was loaded in #{"%.3f" % time} seconds"
 
     end
 
@@ -64,14 +69,25 @@ class Morph
                 ancode = rule_parts[1]
                 prefix = rule_parts[2]
 
+                # create list of possible endings for prediction
+                if !suffix.blank?
+                    if @@endings.has_key?(suffix)
+                        @@endings[suffix] << rule_id
+                    else
+                        @@endings[suffix] = []
+                        @@endings[suffix] << rule_id
+                    end
+                end
+
                 tmp_rules << rule_parts
             end
 
             @@rules[rule_id] = tmp_rules
+            @@rule_frequencies[rule_id] = 0
             rule_id += 1
         end
 
-        puts @@rules.length.to_s + " rules loaded."
+        puts "[INFO] " + @@rules.length.to_s + " rules loaded."
     end
 
     def load_accents(file)
@@ -89,7 +105,7 @@ class Morph
             @@prefixes << line.strip()
         end
 
-        puts @@prefixes.length.to_s + " prefixes loaded."
+        puts "[INFO] " + @@prefixes.length.to_s + " prefixes loaded."
     end
 
     def load_lemmas(file)
@@ -109,10 +125,13 @@ class Morph
             else
                 @@lemmas[base] = []
                 @@lemmas[base] << [rule_id, prefix, ancode]
-            end         
+            end
+
+            # count frequencies of rules for future lemma prediction
+            @@rule_frequencies[rule_id.to_i] += 1 
         end
         
-        puts section_lines.length.to_s + " lemmas loaded."
+        puts "[INFO] " + section_lines.length.to_s + " lemmas loaded."
     end
 
     def read_dictionary(file)
@@ -156,7 +175,7 @@ class Morph
                     suffixes.each do |suffix|
                         if (UnicodeUtils.upcase(word_str) + suffix[0] == UnicodeUtils.upcase(word))
                             gram_info = @@gramtab[annotation[2]]
-                            return [UnicodeUtils.upcase(word_str) + suffixes[0][0], gram_info]
+                            return [UnicodeUtils.upcase(word_str) + suffixes[0][0], gram_info]                            
                         end
                     end
                 end
@@ -173,6 +192,44 @@ class Morph
                 if (suffix[0] == UnicodeUtils.upcase(word))
                     gram_info = @@gramtab[annotation[2]]
                     return [suffixes[0][0], gram_info]
+                end
+            end
+        end
+
+        # try to predict a lemma
+        for i in 5.downto(1) do
+            word_suffix = word[word.length - i..word.length]
+            # puts word_suffix
+
+            # try to found 5,4,3... suffixes of our word in list of endings
+            # if we found it then return predicted normal form of word
+            if !word_suffix.nil? and @@endings.has_key?(UnicodeUtils.upcase(word_suffix))
+                possible_rules = @@endings.get(UnicodeUtils.upcase(word_suffix))
+
+                max_frequency = 0
+                best_rule = 0
+
+                # search for most popular rule 
+                possible_rules.each do |rule_id|
+                    if @@rule_frequencies[rule_id] > max_frequency 
+
+                        @@rules[rule_id].each do |prule|
+                            # predict only productive classes (noun, verb, adjective, adverb)
+                            if prule[0] == UnicodeUtils.upcase(word_suffix) and 
+                                @@PRODUCTIVE_CLASSES.include?(@@gramtab[prule[1]][0])
+                                max_frequency = @@rule_frequencies[rule_id]
+                                best_rule = rule_id
+                                break
+                            end
+                        end
+                    end
+                end
+
+                predicted_word = word[0..-(i + 1)] + @@rules[best_rule][0][0]
+                gram_info = @@gramtab[@@rules[best_rule][0][1]]
+
+                if max_frequency > 0
+                    return [UnicodeUtils.upcase(predicted_word), gram_info]
                 end
             end
         end
