@@ -40,12 +40,12 @@ class Morph
             section_lines[i - 1] = file.gets
         end
 
-        return section_lines
+        section_lines
     end
 
     def pass_section(file)
-        read_section(file).each do |line|
-        end
+        read_section(file).each {
+        }
     end
 
     def load_rules(file)
@@ -70,7 +70,7 @@ class Morph
                 suffix = rule_parts[0]
 
                 # create list of possible endings for prediction
-                if !suffix.blank?
+                unless suffix.blank?
                     if @endings.has_key?(suffix)
                         @endings[suffix] << rule_id
                     else
@@ -166,14 +166,14 @@ class Morph
         # try to found word in dictionary
         # on each iteration we cut word by 1 letter
         # i.e. Russia, Russi, Russ...
-        while !word_str.blank? do
+        until word_str.blank? do
             if @lemmas.has_key?(UnicodeUtils.upcase(word_str))
                 annotations = @lemmas.get(UnicodeUtils.upcase(word_str))
                 annotations.each do |annotation|
                     suffixes = @rules[annotation[0].to_i]
 
                     suffixes.each do |suffix|
-                        if (UnicodeUtils.upcase(word_str) + suffix[0] == UnicodeUtils.upcase(word))
+                        if UnicodeUtils.upcase(word_str) + suffix[0] == UnicodeUtils.upcase(word)
                             gram_info = @gramtab[annotation[2]]
                             return [UnicodeUtils.upcase(word_str) + suffixes[0][0], gram_info]
                         end
@@ -189,7 +189,7 @@ class Morph
             suffixes = @rules[annotation[0].to_i]
 
             suffixes.each do |suffix|
-                if (suffix[0] == UnicodeUtils.upcase(word))
+                if suffix[0] == UnicodeUtils.upcase(word)
                     gram_info = @gramtab[annotation[2]]
                     return [suffixes[0][0], gram_info]
                 end
@@ -197,7 +197,7 @@ class Morph
         end
 
         # try to predict a lemma
-        for i in 5.downto(1) do
+        5.downto(1).each do |i|
             word_suffix = word[word.length - i..word.length]
             # puts word_suffix
 
@@ -234,7 +234,7 @@ class Morph
             end
         end
 
-        return ["", ""]
+        %w("" "")
     end
 
     def normalize_words(words)
@@ -244,11 +244,11 @@ class Morph
             h = [w, normal_form[0], normal_form[1]]
             normal_words << h
         end
-        return normal_words
+        normal_words
     end
 
     def get_rule(rule_id)
-        return @rules[rule_id]
+        @rules[rule_id]
     end
 
     def get_lemma(lemma)
