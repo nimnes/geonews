@@ -11,7 +11,7 @@
 #
 # It's strongly recommended to check this file into your version control system.
 
-ActiveRecord::Schema.define(:version => 20120805095554) do
+ActiveRecord::Schema.define(:version => 20121220155039) do
 
   create_table "feed_entries", :force => true do |t|
     t.string   "name"
@@ -19,8 +19,20 @@ ActiveRecord::Schema.define(:version => 20120805095554) do
     t.string   "url"
     t.datetime "published_at"
     t.string   "guid"
+    t.string   "location"
     t.datetime "created_at",   :null => false
     t.datetime "updated_at",   :null => false
+  end
+
+  create_table "geonames", :force => true do |t|
+    t.string   "geonameid"
+    t.text     "name"
+    t.float    "latitude"
+    t.float    "longitude"
+    t.string   "fclass"
+    t.integer  "population"
+    t.datetime "created_at", :null => false
+    t.datetime "updated_at", :null => false
   end
 
 end

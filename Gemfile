@@ -7,6 +7,7 @@ gem 'will_paginate'
 gem 'bootstrap-will_paginate'
 gem 'algorithms'
 gem 'unicode_utils'
+gem 'json'
 
 # Bundle edge Rails instead:
 # gem 'rails', :git => 'git://github.com/rails/rails.git'
@@ -16,7 +17,7 @@ group :production, :staging do
 end
 
 group :development, :test do
-  gem 'sqlite3'
+  gem 'pg'
 end
 
 

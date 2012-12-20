@@ -2,33 +2,45 @@
 <script type="text/javascript">
         // Как только будет загружен API и готов DOM, выполняем инициализацию
         ymaps.ready(init);
+        var i = 0;
 
         function init () {
             var myMap = new ymaps.Map("map", {
                     center: [56.45, 37.64],
                     zoom: 5
-                }),
+                });
 
-                // Создаем метки для городов Москва и Санкт-Петербург.
-                // Задаем для них описания: название города, расположение и численность людей.
-                myPlacemarkMsc = new ymaps.Placemark([55.8, 37.6], {
-                    title: 'В Москве проходят соревнования по горным лыжам и сноуборду на песке',
-                    summary: 'В Москве проходят соревнования по горным лыжам и сноуборду на песке. Спортсмены соревнуются на склоне песчаного карьера в подмосковных Котельниках.'
-                }),
+            // Создаем коллекцию, в которую будем добавлять метки
+            var myCollection = new ymaps.GeoObjectCollection();
 
-                myPlacemarkSpb = new ymaps.Placemark([59.930, 30.347], {
-                    title: 'Санкт-Петербург',
-                    summary: 'Город расположен на северо-западе Российской Федерации, <br />в пределах Приневской низменности, ' +
-                        'на прилегающем к устью реки Невы побережье Невской губы <br />Финского залива и на многочисленных островах Невской дельты.'
-                }),
+            <% if @news.any? %>
+                var news_json = <%= raw @news.to_json %>;
+                var parsed_json = eval(news_json);
+                var locations = []
 
-                // Создаем коллекцию, в которую будем добавлять метки
-                myCollection = new ymaps.GeoObjectCollection();
 
-            //Добавляем метки в коллекцию геообъектов.
-            myCollection
-                .add(myPlacemarkMsc)
-                .add(myPlacemarkSpb);
+            test: {
+                while (i < 2) {
+                    var obj = parsed_json[i];
+                    ymaps.geocode(obj.location.split(', ')[0], {results: 1}).then(function (res) {
+                        if (res.geoObjects.getLength() > 0) {
+
+
+                            myCollection.add(new ymaps.Placemark(res.geoObjects.get(0).geometry.getCoordinates(), {
+                                title: obj.name,
+                                summary: obj.summary
+                            }));
+                        }
+                        console.log(i);
+                        i++;
+                        console.log(i);
+                    });
+                    break test;
+                }
+            }
+
+                console.log("main" + i);
+            <% end %>
 
             // Создаем шаблон для отображения контента балуна
             var myBalloonLayout = ymaps.templateLayoutFactory.createClass(
@@ -50,7 +62,7 @@
             myMap.geoObjects.add(myCollection);
             myMap.controls.add('zoomControl').add('smallZoomControl', {right: 5, top: 75})
         }
-    </script>
+</script>
 
 <div id="map" style="width: 100%; height: 560px; border: 1px dashed">
 	

@@ -4,10 +4,11 @@
 	<span class="content"><%= entry.summary.html_safe %></span>
 	<span class="timestamp"><%= time_ago_in_words(entry.published_at) %></span>
 	<span class="pull-right">
-	<a href="#">
-		<i class="icon-map-marker"></i>
-		Locate
-	</a>
+      <%= entry.location %>
+	<!--<a href="#">-->
+		<!--<i class="icon-map-marker"></i>-->
+		<!--Locate-->
+	<!--</a>-->
 	</span>
 </li>
 <% end %>

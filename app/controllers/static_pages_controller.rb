@@ -1,14 +1,13 @@
-require "./lib/lemmatizer/lemmatizer"
-
 class StaticPagesController < ApplicationController
-    @@lemmatizer = Lemmatizer.new
+    Feedzirra::Feed.add_common_feed_entry_element('location', :as => :location)
 
     def home
+        @news = FeedEntry.where("location <> ''")
         render :action => "home", :layout => 'map'
     end
 
     def news
-        @news = FeedEntry.paginate(page: params[:page], per_page: 50)
+        @news = FeedEntry.where("location <> ''").paginate(page: params[:page], per_page: 50)
     end
 
     def lemmatizer
