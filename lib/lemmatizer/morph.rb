@@ -169,7 +169,10 @@ class Morph
         until word_str.blank? do
             if @lemmas.has_key?(UnicodeUtils.upcase(word_str))
                 annotations = @lemmas.get(UnicodeUtils.upcase(word_str))
-                annotations.each do |annotation|
+
+                # sort possible rules by id number
+                # more general rules have smaller id
+                annotations.sort_by{|k|k[0].to_i}.each do |annotation|
                     suffixes = @rules[annotation[0].to_i]
 
                     suffixes.each do |suffix|
@@ -180,7 +183,9 @@ class Morph
                             else
                                 is_location = gram_info[1].include?('лок')
                             end
-                            return [UnicodeUtils.upcase(word_str) + suffixes[0][0], gram_info, is_location]
+                            return [ UnicodeUtils.upcase(word_str) + suffixes[0][0],
+                                     UnicodeUtils.upcase(word_str),
+                                     annotation[0].to_i, gram_info, is_location ]
                         end
                     end
                 end
@@ -201,7 +206,7 @@ class Morph
                     else
                         is_location = gram_info[1].include?('лок')
                     end
-                    return [suffixes[0][0], gram_info, is_location]
+                    return [suffixes[0][0], '#', annotation[0].to_i, gram_info, is_location]
                 end
             end
         end
@@ -244,12 +249,12 @@ class Morph
                 end
 
                 if max_frequency > 0
-                    return [UnicodeUtils.upcase(predicted_word), gram_info, is_location]
+                    return [UnicodeUtils.upcase(predicted_word), word[0..-(i + 1)], best_rule, gram_info, is_location]
                 end
             end
         end
 
-        %w("" "")
+        %w("" "" "" "")
     end
 
     def normalize_words(words)
@@ -258,13 +263,25 @@ class Morph
             normal_form = normalize(w)
             h = { word:  w,
                   normal_form: normal_form[0],
-                  annotation: normal_form[1],
-                  is_location: normal_form[2]
+                  lemma: normal_form[1],
+                  rule: normal_form[2],
+                  annotation: normal_form[3],
+                  is_location: normal_form[4]
                 }
             normal_words << h
         end
 
         normal_words
+    end
+
+    # transform word in neccessary form
+    def transform_word(lemma, rule_id, annotation)
+        @rules[rule_id].each do |r|
+            if r[1] == annotation
+                return lemma + r[0]
+            end
+        end
+        ""
     end
 
     def get_rule(rule_id)

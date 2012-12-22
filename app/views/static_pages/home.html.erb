@@ -16,30 +16,15 @@
             <% if @news.any? %>
                 var news_json = <%= raw @news.to_json %>;
                 var parsed_json = eval(news_json);
-                var locations = []
 
-
-            test: {
-                while (i < 2) {
+                for (var i = 0; i < parsed_json.length; i++) {
                     var obj = parsed_json[i];
-                    ymaps.geocode(obj.location.split(', ')[0], {results: 1}).then(function (res) {
-                        if (res.geoObjects.getLength() > 0) {
-
-
-                            myCollection.add(new ymaps.Placemark(res.geoObjects.get(0).geometry.getCoordinates(), {
-                                title: obj.name,
-                                summary: obj.summary
-                            }));
-                        }
-                        console.log(i);
-                        i++;
-                        console.log(i);
-                    });
-                    break test;
+                    var coords = obj.location.split(',')
+                    myCollection.add(new ymaps.Placemark([coords[0], coords[1]], {
+                        title: obj.name,
+                        summary: obj.summary
+                    }));
                 }
-            }
-
-                console.log("main" + i);
             <% end %>
 
             // Создаем шаблон для отображения контента балуна
