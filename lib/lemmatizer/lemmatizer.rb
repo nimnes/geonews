@@ -20,7 +20,7 @@ class Lemmatizer
 
         @morph = Morph.new()
         @morph.load_dictionary("./dicts/morphs.mrd", "./dicts/rgramtab.tab")
-        @administative_units = ["КРАЙ"]
+        @administative_units = [%w(ОБЛАСТЬ йж), %w(КРАЙ йа)]
     end
 
     def inspect
@@ -40,17 +40,18 @@ class Lemmatizer
 
             prev_word = {}
             normal_sentence.each do |w|
-                if w[:normal_form] == "КРАЙ" and !prev_word.nil?
-                    t_word = @morph.transform_word(prev_word[:lemma], prev_word[:rule], "йа")
+                # check for areas or regions
+                @administative_units.each do |adm_unit|
+                    if w[:normal_form] == adm_unit[0] and prev_word.present?
+                        t_word = @morph.transform_word(prev_word[:lemma], prev_word[:rule], adm_unit[1])
 
-                    unless t_word.blank?
-                        locations <<  t_word + " " + w[:normal_form]
+                        unless t_word.blank?
+                            locations <<  t_word + " " + w[:normal_form]
+                        end
                     end
                 end
 
-                if w[:is_location]
-                    locations << w[:normal_form]
-                end
+                locations << w[:normal_form] if w[:is_location]
 
                 prev_word = w
             end
@@ -73,11 +74,14 @@ class Lemmatizer
 
             prev_word = {}
             normal_sentence.each do |w|
-                if w[:normal_form] == "КРАЙ" and !prev_word.nil?
-                    t_word = @morph.transform_word(prev_word[:lemma], prev_word[:rule], "йа")
+                # check for areas or regions
+                @administative_units.each do |adm_unit|
+                    if w[:normal_form] == adm_unit[0] and prev_word.present?
+                        t_word = @morph.transform_word(prev_word[:lemma], prev_word[:rule], adm_unit[1])
 
-                    unless t_word.blank?
-                        locations <<  ["", t_word + " " + w[:normal_form]]
+                        unless t_word.blank?
+                            locations <<  ["", t_word + " " + w[:normal_form]]
+                        end
                     end
                 end
 
@@ -108,12 +112,15 @@ class Lemmatizer
             end
         end
 
+        # choose settlement with max population or administrative region with minimal population
         if population_units.empty?
             unless adm_units.empty?
-                return adm_units.last[0].latitude.to_s + "," + adm_units.last[0].longitude.to_s + "," + adm_units.last[1]
+                return "%.2f,%.2f,%s" % [adm_units.last[0].latitude, adm_units.last[0].longitude, adm_units.last[1]]
             end
         else
-            return population_units.first[0].latitude.to_s + "," + population_units.first[0].longitude.to_s + "," + population_units.first[1]
+            return "%.2f,%.2f,%s" % [ population_units.first[0].latitude,
+                                     population_units.first[0].longitude,
+                                     population_units.first[1] ]
         end
 
         ""

@@ -1,7 +1,12 @@
+<p>
+  <button onclick="window.location.href='news'" class="btn btn-success" type="button">Новости с позицией</button>
+  <button onclick="window.location.href='news?no_geo=1'" class="btn" type="button">Новости без позиции</button>
+</p>
+
 <div class="row">
 <div class="span8">
 	<% if @news.any? %>
-		<h3>Новости (<%= @news.count %>)</h3>
+		<h3>Новости [ <%= @news.count %> / <%= "%.1f" % (@news.count.to_f / @total.to_f * 100) %>% ]</h3>
 		<ol class="news">
 			<%= render 'layouts/news_entry' %>
 		</ol>

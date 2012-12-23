@@ -13,6 +13,7 @@
             // Создаем коллекцию, в которую будем добавлять метки
             var myCollection = new ymaps.GeoObjectCollection();
 
+            // TODO: add clusters for placemarks
             <% if @news.any? %>
                 var news_json = <%= raw @news.to_json %>;
                 var parsed_json = eval(news_json);
@@ -22,7 +23,10 @@
                     var coords = obj.location.split(',')
                     myCollection.add(new ymaps.Placemark([coords[0], coords[1]], {
                         title: obj.name,
-                        summary: obj.summary
+                        summary: obj.summary,
+                        location: coords[2]
+                    }, {
+                        preset: 'twirl#darkgreenIcon'
                     }));
                 }
             <% end %>
@@ -30,7 +34,8 @@
             // Создаем шаблон для отображения контента балуна
             var myBalloonLayout = ymaps.templateLayoutFactory.createClass(
                 '<h4>$[properties.title]</h4>' +
-                '<p>$[properties.summary]</p>'
+                '<p style="font-size: 100%;">$[properties.summary]</p>' +
+                '<small style="font-weight: lighter;">$[properties.location]</small>'
             );
 
             // Помещаем созданный шаблон в хранилище шаблонов. Теперь наш шаблон доступен по ключу 'my#superlayout'.
