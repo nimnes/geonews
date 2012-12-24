@@ -7,7 +7,7 @@ class FeedEntry < ActiveRecord::Base
 
         # save feeds in database for future updating
         if Feeds.where("feed_url = ?", feed_url).empty?
-            puts "[INFO] add feed #{feed_url} to database"
+            puts "[FEED] add feed #{feed_url} to database"
             Feeds.create!(
                 :title          => feed.title,
                 :url            => feed.url,
@@ -21,7 +21,7 @@ class FeedEntry < ActiveRecord::Base
     def self.update_feeds()
         # update all feeds, new entries will be added in database
         Feeds.all.each do |feed|
-            puts "[INFO] updating news from #{feed.feed_url}..."
+            puts "[FEED] updating news from #{feed.feed_url}..."
             feed_to_update = Feedzirra::Parser::RSS.new
             feed_to_update.title = feed.title
             feed_to_update.etag = feed.etag
@@ -30,12 +30,13 @@ class FeedEntry < ActiveRecord::Base
             feed_to_update.last_modified = feed.last_modified
 
             updated_feed = Feedzirra::Feed.update(feed_to_update)
-
-            puts updated_feed.updated?
             add_entries(updated_feed.new_entries) if updated_feed.updated?
 
             feed.update_attributes(:last_modified => updated_feed.last_modified)
         end
+
+        # delete old news
+        FeedEntry.where("published_at < ?", 1.day.ago).destroy_all
     end
 
     private
@@ -52,7 +53,7 @@ class FeedEntry < ActiveRecord::Base
                     )
             end
         end
-        puts "[INFO] #{entries.count} feed entries were added"
+        puts "[FEED] #{entries.count} feed entries were added"
     end
 
     def self.update_location(entry, location)
@@ -64,7 +65,7 @@ class FeedEntry < ActiveRecord::Base
         add_entries(feed.entries)
         loop do
             sleep delay_interval.to_i
-            puts "[INFO] updating from feed #{feed_url}"
+            puts "[FEED] updating from feed #{feed_url}"
             feed = Feedzirra::Feed.update(feed)
             add_entries(feed.new_entries) if feed.updated?
         end

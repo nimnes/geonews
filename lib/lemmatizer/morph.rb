@@ -15,7 +15,7 @@ class Morph
     end
 
     def load_dictionary(dict_file, gram_file)
-        puts "[INFO] loading dictionary " + dict_file + " with gramtab " + gram_file + "..."
+        puts "[LEM] loading dictionary " + dict_file + " with gramtab " + gram_file + "..."
 
         dictionary_file = File.new(dict_file, "r")
         gramtab_file = File.new(gram_file, "r")
@@ -23,12 +23,12 @@ class Morph
         time = Benchmark.realtime do
             read_dictionary(dictionary_file)
         end
-        puts "[INFO] dictionary was loaded in #{"%.3f" % time} seconds"
+        puts "[LEM] dictionary was loaded in #{"%.3f" % time} seconds"
 
         time = Benchmark.realtime do
             read_gramtab(gramtab_file)
         end
-        puts "[INFO] gramtab file was loaded in #{"%.3f" % time} seconds"
+        puts "[LEM] gramtab file was loaded in #{"%.3f" % time} seconds"
 
     end
 
@@ -87,7 +87,7 @@ class Morph
             rule_id += 1
         end
 
-        puts "[INFO] " + @rules.length.to_s + " rules loaded."
+        puts "[LEM] " + @rules.length.to_s + " rules loaded."
     end
 
     def load_accents(file)
@@ -105,7 +105,7 @@ class Morph
             @prefixes << line.strip()
         end
 
-        puts "[INFO] " + @prefixes.length.to_s + " prefixes loaded."
+        puts "[LEM] " + @prefixes.length.to_s + " prefixes loaded."
     end
 
     def load_lemmas(file)
@@ -131,7 +131,7 @@ class Morph
             @rule_frequencies[rule_id.to_i] += 1
         end
 
-        puts "[INFO] " + section_lines.length.to_s + " lemmas loaded."
+        puts "[LEM] " + section_lines.length.to_s + " lemmas loaded."
     end
 
     def read_dictionary(file)
