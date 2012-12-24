@@ -15,12 +15,13 @@
 
             // TODO: add clusters for placemarks
             <% if @news.any? %>
-                var news_json = <%= raw @news.to_json %>;
+                var news_json = "";
+                news_json = <%= raw @news.to_json %>;
                 var parsed_json = eval(news_json);
 
                 for (var i = 0; i < parsed_json.length; i++) {
                     var obj = parsed_json[i];
-                    var coords = obj.location.split(',')
+                    var coords = obj.location.split(',');
                     myCollection.add(new ymaps.Placemark([coords[0], coords[1]], {
                         title: obj.name,
                         summary: obj.summary,
