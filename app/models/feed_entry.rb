@@ -1,6 +1,10 @@
 class FeedEntry < ActiveRecord::Base
     attr_accessible :guid, :name, :published_at, :summary, :url, :location
 
+    def self.set_lemmatizer(lem)
+        @lemmatizer = lem
+    end
+
     def self.add_feed(feed_url)
         feed = Feedzirra::Feed.fetch_and_parse(feed_url)
         add_entries(feed.entries)
@@ -49,7 +53,7 @@ class FeedEntry < ActiveRecord::Base
                     :url          => entry.url,
                     :published_at => entry.published,
                     :guid         => entry.id,
-                    :location     => $lemmatizer.define_location(entry.title + ". " + entry.summary)
+                    :location     => @lemmatizer.define_location(entry.title + ". " + entry.summary)
                     )
             end
         end

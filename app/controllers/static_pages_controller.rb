@@ -1,9 +1,12 @@
 class StaticPagesController < ApplicationController
     Feedzirra::Feed.add_common_feed_entry_element('location', :as => :location)
 
-    #unless FeedEntry.any?
-    #    FeedEntry.add_feed("http://www.vesti.ru/vesti.rss")
-    #end
+    @@lemmatizer = Lemmatizer.new
+    FeedEntry.set_lemmatizer(@@lemmatizer)
+
+    unless FeedEntry.any?
+        FeedEntry.add_feed("http://www.vesti.ru/vesti.rss")
+    end
 
     def home
         @news = FeedEntry.where("location <> ''")
@@ -24,7 +27,7 @@ class StaticPagesController < ApplicationController
             @input_text = ""
             @locations = []
         else
-            @locations = $lemmatizer.define_location_full(params[:input_text])
+            @locations = @@lemmatizer.define_location_full(params[:input_text])
             @input_text = params[:input_text]
         end
     end
