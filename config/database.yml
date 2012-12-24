@@ -22,4 +22,4 @@ production:
   encoding: utf8
   database: geonews_production
   host: localhost
-  user: geonews
+  username: nimnes

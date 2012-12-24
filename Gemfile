@@ -10,18 +10,7 @@ gem 'unicode_utils'
 gem 'json'
 
 gem 'whenever', :require => false
-
-# Bundle edge Rails instead:
-# gem 'rails', :git => 'git://github.com/rails/rails.git'
-
-group :production, :staging do
-  gem "pg"
-end
-
-group :development, :test do
-  gem 'pg'
-end
-
+gem 'pg'
 
 # Gems used only for assets and not required
 # in production environments by default.
