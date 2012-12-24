@@ -1,9 +1,9 @@
 class StaticPagesController < ApplicationController
     Feedzirra::Feed.add_common_feed_entry_element('location', :as => :location)
 
-    unless FeedEntry.any?
-        FeedEntry.add_feed("http://www.vesti.ru/vesti.rss")
-    end
+    #unless FeedEntry.any?
+    #    FeedEntry.add_feed("http://www.vesti.ru/vesti.rss")
+    #end
 
     def home
         @news = FeedEntry.where("location <> ''")
