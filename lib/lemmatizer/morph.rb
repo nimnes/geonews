@@ -166,7 +166,6 @@ class Morph
             (word.start_with?("'") and word.end_with?("'"))
             word = word.gsub(/["']/, "")
             is_quotes = true
-            puts "word with quotes"
         end
         word_str = word
 
@@ -289,6 +288,14 @@ class Morph
             end
         end
         ""
+    end
+
+    def is_surname?(word)
+        if word.nil? or word[:annotation].nil? or word[:annotation][1].nil?
+            return false
+        end
+
+        word[:annotation][1].include?("фам")
     end
 
     def get_rule(rule_id)

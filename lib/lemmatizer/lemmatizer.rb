@@ -15,7 +15,8 @@ class Lemmatizer
           "пос."  => "поселок",
           "м."    => "метро",
           "респ." => "республика",
-          "обл."  => "область"
+          "обл."  => "область",
+          "РФ"    => "Россия"
         }
 
         @morph = Morph.new()
@@ -39,10 +40,10 @@ class Lemmatizer
             normal_sentence = @morph.normalize_words(words)
 
             prev_word = {}
-            normal_sentence.each do |w|
+            normal_sentence.each_with_index do |w, index|
                 # check for areas or regions
                 @administative_units.each do |adm_unit|
-                    if w[:normal_form] == adm_unit[0] and prev_word.present?
+                    if w[:normal_form] == adm_unit[0] and prev_word.empty?
                         t_word = @morph.transform_word(prev_word[:lemma], prev_word[:rule], adm_unit[1])
 
                         unless t_word.blank?
@@ -51,7 +52,13 @@ class Lemmatizer
                     end
                 end
 
-                locations << w[:normal_form] if w[:is_location]
+                if w[:is_location]
+                    # check for surnames around word (i.e. Vladimir is a city but Vladimir Putin - no! )
+                    unless @morph.is_surname?(normal_sentence[index - 1]) or
+                        @morph.is_surname?(normal_sentence[index + 1])
+                        locations << w[:normal_form]
+                    end
+                end
 
                 prev_word = w
             end
