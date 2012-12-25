@@ -161,6 +161,13 @@ class Morph
 
     # get normal form of a word
     def normalize(word)
+        is_quotes = false
+        if (word.start_with?("\"") and word.end_with?("\"")) or
+            (word.start_with?("'") and word.end_with?("'"))
+            word = word.gsub(/["']/, "")
+            is_quotes = true
+            puts "word with quotes"
+        end
         word_str = word
 
         # try to found word in dictionary
@@ -181,7 +188,7 @@ class Morph
                             if gram_info.nil? or gram_info[1].nil?
                                 is_location = false
                             else
-                                is_location = gram_info[1].include?('лок')
+                                is_location = (gram_info[1].include?('лок') and not is_quotes)
                             end
                             return [ UnicodeUtils.upcase(word_str) + suffixes[0][0],
                                      UnicodeUtils.upcase(word_str),
@@ -204,7 +211,7 @@ class Morph
                     if gram_info.nil? or gram_info[1].nil?
                         is_location = false
                     else
-                        is_location = gram_info[1].include?('лок')
+                        is_location = (gram_info[1].include?('лок') and not is_quotes)
                     end
                     return [suffixes[0][0], '#', annotation[0].to_i, gram_info, is_location]
                 end
@@ -245,7 +252,7 @@ class Morph
                 if gram_info.nil? or gram_info[1].nil?
                     is_location = false
                 else
-                    is_location = gram_info[1].include?('лок')
+                    is_location = (gram_info[1].include?('лок') and not is_quotes)
                 end
 
                 if max_frequency > 0

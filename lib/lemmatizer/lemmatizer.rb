@@ -145,7 +145,7 @@ class Lemmatizer
 
     def parse_words(sentence)
         # remove punctuation
-        sentence = sentence.gsub(/[\.\?!:;,"'`~—]/, "")
+        sentence = sentence.gsub(/[\.\?!:;,`~—]/, "")
         sentence.split(/\s+/)
     end
 
