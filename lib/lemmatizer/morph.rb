@@ -236,8 +236,8 @@ class Morph
 
                         @rules[rule_id].each do |prule|
                             # predict only productive classes (noun, verb, adjective, adverb)
-                            if prule[0] == UnicodeUtils.upcase(word_suffix) and
-                                @productive_classes.include?(@gramtab[prule[1]][0])
+                            #puts prule[1]
+                            if prule[0] == UnicodeUtils.upcase(word_suffix) and @productive_classes.include?(@gramtab[prule[1]][0])
                                 max_frequency = @rule_frequencies[rule_id]
                                 best_rule = rule_id
                                 break

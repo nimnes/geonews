@@ -1,5 +1,5 @@
 class FeedEntry < ActiveRecord::Base
-    attr_accessible :guid, :name, :published_at, :summary, :url, :location
+    attr_accessible :guid, :name, :published_at, :summary, :url, :location, :tags
 
     def self.set_lemmatizer(lem)
         @lemmatizer = lem
@@ -40,20 +40,23 @@ class FeedEntry < ActiveRecord::Base
         end
 
         # delete old news
-        FeedEntry.where("published_at < ?", 1.day.ago).destroy_all
+        FeedEntry.where("published_at < ?", 1.month.ago).destroy_all
     end
 
     private
     def self.add_entries(entries)
         entries.each do |entry|
             unless exists? :guid => entry.id
+                entry_location = @lemmatizer.define_location(entry.title + ". " + entry.summary)
+                puts entry_location[:name]
                 create!(
                     :name         => entry.title,
                     :summary      => entry.summary,
                     :url          => entry.url,
                     :published_at => entry.published,
                     :guid         => entry.id,
-                    :location     => @lemmatizer.define_location(entry.title + ". " + entry.summary)
+                    :location     => entry_location[:coords],
+                    :tags         => entry_location[:name]
                     )
             end
         end

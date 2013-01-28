@@ -80,7 +80,7 @@ class Lemmatizer
             normal_sentence = @morph.normalize_words(words)
 
             prev_word = {}
-            normal_sentence.each do |w|
+            normal_sentence.each_with_index do |w, index|
                 # check for areas or regions
                 @administative_units.each do |adm_unit|
                     if w[:normal_form] == adm_unit[0] and prev_word.present?
@@ -93,7 +93,11 @@ class Lemmatizer
                 end
 
                 if w[:is_location]
-                    locations << [w[:word], w[:normal_form]]
+                    # check for surnames around word (i.e. Vladimir is a city but Vladimir Putin - no! )
+                    unless @morph.is_surname?(normal_sentence[index - 1]) or
+                        @morph.is_surname?(normal_sentence[index + 1])
+                        locations << [w[:word], w[:normal_form]]
+                    end
                 end
 
                 prev_word = w
@@ -108,6 +112,7 @@ class Lemmatizer
         population_units = []
 
         locations.each do |location|
+            # search location in Geonames database
             units = Geonames.where('name ~* ?', "^#{location}$|^#{location}[,]|[,]#{location}[,]|[,]#{location}$")
 
             units.each do |unit|
@@ -122,15 +127,15 @@ class Lemmatizer
         # choose settlement with max population or administrative region with minimal population
         if population_units.empty?
             unless adm_units.empty?
-                return "%.2f,%.2f,%s" % [adm_units.last[0].latitude, adm_units.last[0].longitude, adm_units.last[1]]
+                loc_coords = "%.2f,%.2f" % [adm_units.last[0].latitude, adm_units.last[0].longitude]
+                return {coords: loc_coords, name: adm_units.last[1]}
             end
         else
-            return "%.2f,%.2f,%s" % [ population_units.first[0].latitude,
-                                     population_units.first[0].longitude,
-                                     population_units.first[1] ]
+            loc_coords = "%.2f,%.2f" % [population_units.first[0].latitude, population_units.first[0].longitude]
+            return {coords: loc_coords, name: population_units.first[1]}
         end
 
-        ""
+        {coods: nil, name: nil}
     end
 
     def parse_sentences(text)

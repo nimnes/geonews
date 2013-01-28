@@ -9,9 +9,9 @@ class StaticPagesController < ApplicationController
     def news
         @total = FeedEntry.all.count
         if params[:no_geo].nil?
-            @news = FeedEntry.where("location <> ''").paginate(page: params[:page], per_page: 50)
+            @news = FeedEntry.where("location IS NOT NULL").paginate(page: params[:page], per_page: 50)
         else
-            @news = FeedEntry.where("location = ''").paginate(page: params[:page], per_page: 50)
+            @news = FeedEntry.where("location IS NULL").paginate(page: params[:page], per_page: 50)
         end
     end
 
