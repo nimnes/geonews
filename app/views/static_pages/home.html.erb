@@ -1,60 +1,61 @@
 <script src="http://api-maps.yandex.ru/2.0/?load=package.full&lang=ru-RU" type="text/javascript"></script>
-<script type="text/javascript">
-        // Как только будет загружен API и готов DOM, выполняем инициализацию
-        ymaps.ready(init);
-        var i = 0;
-
-        function init () {
-            var myMap = new ymaps.Map("map", {
-                    center: [56.45, 37.64],
-                    zoom: 5
-                });
-
-            // Создаем коллекцию, в которую будем добавлять метки
-            var myCollection = new ymaps.GeoObjectCollection();
-
-            // TODO: add clusters for placemarks
-            <% if @news.any? %>
-                var news_json = "";
-                news_json = <%= raw @news.to_json %>;
-                var parsed_json = eval(news_json);
-
-                for (var i = 0; i < parsed_json.length; i++) {
-                    var obj = parsed_json[i];
-                    var coords = obj.location.split(',');
-                    myCollection.add(new ymaps.Placemark([coords[0], coords[1]], {
-                        title: obj.name,
-                        summary: obj.summary,
-                        location: coords[2]
-                    }, {
-                        preset: 'twirl#darkgreenIcon'
-                    }));
-                }
-            <% end %>
-
-            // Создаем шаблон для отображения контента балуна
-            var myBalloonLayout = ymaps.templateLayoutFactory.createClass(
-                '<h4>$[properties.title]</h4>' +
-                '<p style="font-size: 100%;">$[properties.summary]</p>' +
-                '<small style="font-weight: lighter;">$[properties.location]</small>'
-            );
-
-            // Помещаем созданный шаблон в хранилище шаблонов. Теперь наш шаблон доступен по ключу 'my#superlayout'.
-            ymaps.layout.storage.add('my#superlayout', myBalloonLayout);
-
-            // Задаем наш шаблон для балунов геобъектов коллекции.
-            myCollection.options.set({
-                balloonContentBodyLayout:'my#superlayout',
-                // Максимальная ширина балуна в пикселах
-                balloonMaxWidth: 300
-            });
-
-            // Добавляем коллекцию геообъектов на карту.
-            myMap.geoObjects.add(myCollection);
-            myMap.controls.add('zoomControl').add('smallZoomControl', {right: 5, top: 75})
-        }
-</script>
 
 <div id="map" style="width: 100%; height: 560px; border: 1px dashed">
 	
 </div>
+<script async type="text/javascript">
+    // Как только будет загружен API и готов DOM, выполняем инициализацию
+    ymaps.ready(init);
+    var i = 0;
+
+    function init () {
+        var myMap = new ymaps.Map("map", {
+            center: [56.45, 37.64],
+            zoom: 5
+        });
+
+        // Создаем коллекцию, в которую будем добавлять метки
+        var myCollection = new ymaps.GeoObjectCollection();
+
+        // TODO: add clusters for placemarks
+        <% if @news.any? %>
+        var news_json = "";
+        news_json = <%= raw @news.to_json %>;
+        var parsed_json = eval(news_json);
+
+        for (var i = 0; i < parsed_json.length; i++) {
+            var obj = parsed_json[i];
+            var coords = obj.location.split(',');
+            var presetIcon = obj.category == 'local' ? 'twirl#darkgreenIcon' : 'twirl#redIcon';
+            myCollection.add(new ymaps.Placemark([coords[0], coords[1]], {
+                title: obj.name,
+                summary: obj.summary,
+                location: coords[2]
+            }, {
+                preset: presetIcon
+            }));
+        }
+        <% end %>
+
+        // Создаем шаблон для отображения контента балуна
+        var myBalloonLayout = ymaps.templateLayoutFactory.createClass(
+                '<h4>$[properties.title]</h4>' +
+                        '<p style="font-size: 100%;">$[properties.summary]</p>' +
+                        '<small style="font-weight: lighter;">$[properties.location]</small>'
+        );
+
+        // Помещаем созданный шаблон в хранилище шаблонов. Теперь наш шаблон доступен по ключу 'my#superlayout'.
+        ymaps.layout.storage.add('my#superlayout', myBalloonLayout);
+
+        // Задаем наш шаблон для балунов геобъектов коллекции.
+        myCollection.options.set({
+            balloonContentBodyLayout:'my#superlayout',
+            // Максимальная ширина балуна в пикселах
+            balloonMaxWidth: 300
+        });
+
+        // Добавляем коллекцию геообъектов на карту.
+        myMap.geoObjects.add(myCollection);
+        myMap.controls.add('zoomControl').add('smallZoomControl', {right: 5, top: 75})
+    }
+</script>

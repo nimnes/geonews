@@ -128,14 +128,32 @@ class Lemmatizer
         if population_units.empty?
             unless adm_units.empty?
                 loc_coords = "%.2f,%.2f" % [adm_units.last[0].latitude, adm_units.last[0].longitude]
-                return {coords: loc_coords, name: adm_units.last[1]}
+                return {coords: loc_coords, name: adm_units.last[1], category: "local"}
             end
         else
             loc_coords = "%.2f,%.2f" % [population_units.first[0].latitude, population_units.first[0].longitude]
-            return {coords: loc_coords, name: population_units.first[1]}
+            return {coords: loc_coords, name: population_units.first[1], category: "local"}
         end
 
-        {coods: nil, name: nil}
+        # if location isn't defined try to search it in countries database
+        locations.each do |location|
+            countries = Countries.where('name ~* ?', "^#{location}$|^#{location}[,]|[,]#{location}[,]|[,]#{location}$")
+
+            if countries.empty?
+                capitals = Countries.where('capital ~* ?', "^#{location}$|^#{location}[,]|[,]#{location}[,]|[,]#{location}$")
+
+                unless capitals.empty?
+                    coords = "%.2f,%.2f" % [capitals[0].latitude, capitals[0].longitude]
+                    return {coords: coords, name: capitals[0].capital, category: "global"}
+                end
+
+            else
+                coords = "%.2f,%.2f" % [countries[0].latitude, countries[0].longitude]
+                return {coords: coords, name: countries[0].name, category: "global"}
+            end
+        end
+
+        {coords: nil, name: nil, category: nil}
     end
 
     def parse_sentences(text)

@@ -1,13 +1,18 @@
 source 'https://rubygems.org'
 
 gem 'rails', '3.2.11'
-gem 'bootstrap-sass', '2.0.0.0'
+
 gem 'feedzirra'
 gem 'will_paginate'
-gem 'bootstrap-will_paginate'
 gem 'algorithms'
 gem 'unicode_utils'
 gem 'json'
+
+gem 'bootstrap-sass'
+
+gem 'bootstrap-will_paginate'
+gem 'bootstrap-editable-rails'
+gem "select2-rails"
 
 gem 'whenever', :require => false
 gem 'pg'
@@ -17,14 +22,13 @@ gem 'pg'
 group :assets do
   gem 'sass-rails',   '~> 3.2.3'
   gem 'coffee-rails', '~> 3.2.1'
-
   # See https://github.com/sstephenson/execjs#readme for more supported runtimes
   # gem 'therubyracer', :platform => :ruby
 
   gem 'uglifier', '>= 1.0.3'
 end
 
-gem 'jquery-rails'
+gem 'jquery-rails', '2.1.4'
 
 # To use ActiveModel has_secure_password
 # gem 'bcrypt-ruby', '~> 3.0.0'

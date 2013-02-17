@@ -11,7 +11,17 @@
 #
 # It's strongly recommended to check this file into your version control system.
 
-ActiveRecord::Schema.define(:version => 20130128201152) do
+ActiveRecord::Schema.define(:version => 20130216143404) do
+
+  create_table "countries", :force => true do |t|
+    t.string   "code"
+    t.text     "name"
+    t.text     "capital"
+    t.float    "latitude"
+    t.float    "longitude"
+    t.datetime "created_at", :null => false
+    t.datetime "updated_at", :null => false
+  end
 
   create_table "feed_entries", :force => true do |t|
     t.string   "name"
@@ -23,6 +33,7 @@ ActiveRecord::Schema.define(:version => 20130128201152) do
     t.datetime "created_at",   :null => false
     t.datetime "updated_at",   :null => false
     t.string   "tags"
+    t.string   "category"
   end
 
   create_table "feeds", :force => true do |t|

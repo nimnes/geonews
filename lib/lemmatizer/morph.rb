@@ -282,6 +282,9 @@ class Morph
 
     # transform word in neccessary form
     def transform_word(lemma, rule_id, annotation)
+        if rule_id.nil?
+            return ""
+        end
         @rules[rule_id].each do |r|
             if r[1] == annotation
                 return lemma + r[0]

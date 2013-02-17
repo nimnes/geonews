@@ -1,10 +1,30 @@
-<% for entry in @news.all(:order => "published_at desc") %>
+<% @news.all(:order => "published_at desc").each_with_index do |entry, index| %>
 <li>
 	<h4><%= entry.name %></h4>
 	<span class="content"><%= entry.summary.html_safe %></span>
 	<span class="timestamp"><%= time_ago_in_words(entry.published_at) %></span>
 	<span class="pull-right">
-      Теги: <%= entry.tags  %>
+      Теги:
+      <a href="#" id="tags<%= entry.id %>" data-type="select2" data-value="<%= entry.tags %>"
+         data-url="/news/<%= entry.id %>" data-id="<%= entry.id %>" data-emptytext="Нет"
+         data-placement="right" data-original-title="Теги"><%= entry.tags  %></a>
 	</span>
 </li>
+
+<script>
+    $(document).ready(function() {
+        jQuery.noConflict();
+        $('#tags<%= entry.id %>').editable({
+            ajaxOptions: {
+                type: 'put',
+                dataType: 'json'
+            },
+            select2: {
+                tags: ['<%= entry.tags %>'],
+                tokenSeparators: [",", " "]
+            }
+        });
+    });
+</script>
+
 <% end %>

@@ -12,4 +12,10 @@
 //
 //= require jquery
 //= require jquery_ujs
+//= require select2
+//= require bootstrap
+//= require bootstrap-editable
+//= require bootstrap-editable-rails
+//= require news
 //= require_tree .
+
