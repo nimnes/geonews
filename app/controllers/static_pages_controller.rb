@@ -10,11 +10,11 @@ class StaticPagesController < ApplicationController
     end
 
     def lemmatizer
-        @locations = []
+        @entities = []
         if params[:input_text].blank?
             @input_text = ""
         else
-            @locations = @@lemmatizer.define_location_full(params[:input_text])
+            @entities = @@lemmatizer.define_location(params[:input_text])
             @input_text = params[:input_text]
         end
     end

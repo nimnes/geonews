@@ -5,22 +5,43 @@
     <button type="submit" class="btn">Привести к нормальной форме</button>
 <% end %>
 
-<% if @locations.any? %>
-    <h2>Географические объекты</h2>
+<% if @entities.any? %>
     <table class="table table-striped table-bordered table-condensed">
       <thead>
       <tr>
-        <th>Слово</th>
-        <th>Лемма</th>
-        <th>Аннотация</th>
+        <th>№</th>
+        <th>Место</th>
+        <th>Люди</th>
+        <th>Время</th>
       </tr>
       </thead>
-      <% @locations.each do |location| %>
-          <tr>
-            <% location.each do |el| %>
-                <td><%= el %></td>
-            <% end %>
-          </tr>
+      <% @entities.each_with_index do |entity, index| %>
+          <% unless entity.locations.empty? && entity.persons.empty? %>
+              <tr>
+                <td><%= index %></td>
+                <% persons = "" %>
+                <% locations = "" %>
+                <% entity.locations.each do |location| %>
+                    <% locations += location[:name] + " [#{location[:coords]}]" + ", " %>
+                <% end %>
+
+                <% if entity.locations.count > 0 %>
+                    <% locations = locations[0...-2] %>
+                <% end %>
+                <td><%= locations %></td>
+
+                <% entity.persons.each do |p| %>
+                    <% persons += p.surname + ", " %>
+                <% end %>
+
+                <% if entity.persons.count > 0 %>
+                    <% persons = persons[0...-2] %>
+                <% end %>
+
+                <td><%= persons %></td>
+                <td><%= entity.time %></td>
+              </tr>
+          <% end %>
       <% end %>
     </table>
 <% end %>

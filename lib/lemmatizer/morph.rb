@@ -301,6 +301,22 @@ class Morph
         word[:annotation][1].include?("фам")
     end
 
+    def is_name?(word)
+        if word.nil? or word[:annotation].nil? or word[:annotation][1].nil?
+            return false
+        end
+
+        word[:annotation][1].include?("имя")
+    end
+
+    def is_middle_name?(word)
+        if word.nil? or word[:annotation].nil? or word[:annotation][1].nil?
+            return false
+        end
+
+        word[:annotation][1].include?("отч")
+    end
+
     def get_rule(rule_id)
         @rules[rule_id]
     end
