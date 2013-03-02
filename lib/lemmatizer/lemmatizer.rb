@@ -43,7 +43,7 @@ class Lemmatizer
             normal_sentence.each_with_index do |w, index|
                 # check for areas or regions
                 @administative_units.each do |adm_unit|
-                    if w[:normal_form] == adm_unit[0] and prev_word.empty?
+                    if w[:normal_form] == adm_unit[0] and prev_word.present?
                         t_word = @morph.transform_word(prev_word[:lemma], prev_word[:rule], adm_unit[1])
 
                         unless t_word.blank?
@@ -128,11 +128,15 @@ class Lemmatizer
         if population_units.empty?
             unless adm_units.empty?
                 loc_coords = "%.2f,%.2f" % [adm_units.last[0].latitude, adm_units.last[0].longitude]
-                return {coords: loc_coords, name: adm_units.last[1], category: "local"}
+                if loc_coords == "60.00,100.00"
+                    return {coords: loc_coords, name: adm_units.last[1], category: "russia"}
+                else
+                    return {coords: loc_coords, name: adm_units.last[1], category: "region"}
+                end
             end
         else
             loc_coords = "%.2f,%.2f" % [population_units.first[0].latitude, population_units.first[0].longitude]
-            return {coords: loc_coords, name: population_units.first[1], category: "local"}
+            return {coords: loc_coords, name: population_units.first[1], category: "population"}
         end
 
         # if location isn't defined try to search it in countries database

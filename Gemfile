@@ -7,6 +7,7 @@ gem 'will_paginate'
 gem 'algorithms'
 gem 'unicode_utils'
 gem 'json'
+gem 'googlecharts'
 
 gem 'bootstrap-sass'
 
