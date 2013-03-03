@@ -16,32 +16,12 @@
       </tr>
       </thead>
       <% @entities.each_with_index do |entity, index| %>
-          <% unless entity.locations.empty? && entity.persons.empty? %>
-              <tr>
-                <td><%= index %></td>
-                <% persons = "" %>
-                <% locations = "" %>
-                <% entity.locations.each do |location| %>
-                    <% locations += location[:name] + " [#{location[:coords]}]" + ", " %>
-                <% end %>
-
-                <% if entity.locations.count > 0 %>
-                    <% locations = locations[0...-2] %>
-                <% end %>
-                <td><%= locations %></td>
-
-                <% entity.persons.each do |p| %>
-                    <% persons += p.surname + ", " %>
-                <% end %>
-
-                <% if entity.persons.count > 0 %>
-                    <% persons = persons[0...-2] %>
-                <% end %>
-
-                <td><%= persons %></td>
-                <td><%= entity.time %></td>
-              </tr>
-          <% end %>
+          <tr>
+            <td><%= index %></td>
+            <td><%= entity[0].name %></td>
+            <td></td>
+            <td></td>
+          </tr>
       <% end %>
     </table>
 <% end %>

@@ -3,10 +3,10 @@ require "./lib/lemmatizer/morph"
 
 class Lemmatizer
     Entity = Struct.new(:locations, :persons, :time)
-    Location = Struct.new(:name, :coords, :fclass, :acode, :category)
+    Location = Struct.new(:geonameid, :name, :fclass, :acode, :category)
     Person = Struct.new(:name, :surname, :middlename)
 
-    RU_LOC = "60.00,100.00"
+    RUSSIA_ID = "2017370"
 
     POPULATION = "population"
     RUSSIA = "russia"
@@ -108,7 +108,69 @@ class Lemmatizer
             entities << entity
         end
 
-        entities
+        self.define_locations_weights(entities)
+    end
+
+    # returns 2 best locations based on population, number of occurencies in text and other factors
+    def define_locations_weights(entities)
+        locations = []
+        locations_weights = {}
+        is_areas = false
+
+        max_population = 0
+        max_population_location = nil
+
+        entities.each do |entity|
+            entity.locations.each do |location|
+                locations << location
+                locations_weights[location] = 0.5
+
+                location_unit = Geonames.where("geonameid = '#{location.geonameid}'").first
+
+                if not is_areas and location.fclass != POPULATION_CLASS
+                    is_areas = true
+                end
+
+                if location.fclass == POPULATION_CLASS and location_unit.population > max_population
+                    max_population = location_unit.population
+                    max_population_location = location
+                end
+            end
+        end
+
+        unless max_population_location.nil?
+            locations_weights[max_population_location] = 0.9
+        end
+
+        if locations.count == 1
+            locations_weights[locations.first] = 0.95
+        else
+            locations.each do |location|
+                if locations.count(location) > 1
+                    locations_weights[location] = 0.8
+                end
+
+                if location.fclass == POPULATION_CLASS
+                    flag = false
+                    locations.each do |l|
+                        if l.acode == location.acode and l.fclass != POPULATION_CLASS
+                            locations_weights[location] = 0.8
+                            locations_weights.delete(l)
+                            flag = true
+                            break
+                        end
+                    end
+
+                    if not flag and not is_areas and locations_weights[location] < 0.7
+                        locations_weights[location] = 0.7
+                    end
+                else
+
+                end
+            end
+        end
+
+        locations_weights.sort_by {|k,v| v}.reverse[0...2]
     end
 
     def define_location_coords(location)
@@ -132,17 +194,17 @@ class Lemmatizer
         if population_units.empty?
             unless adm_units.empty?
                 unit = adm_units.last
-                loc_coords = COORDS_FMT % [unit.latitude, unit.longitude]
-                if loc_coords == RU_LOC
+
+                if unit.geonameid == RUSSIA_ID
+                    result.geonameid = unit.geonameid
                     result.name = location
-                    result.coords = loc_coords
                     result.acode = unit.acode
                     result.category = RUSSIA
                     result.fclass = unit.fclass
                     return result
                 else
+                    result.geonameid = unit.geonameid
                     result.name = location
-                    result.coords = loc_coords
                     result.acode = unit.acode
                     result.category = REGIONAL
                     result.fclass = unit.fclass
@@ -152,7 +214,7 @@ class Lemmatizer
         else
             unit = population_units.first
             result.name = location
-            result.coords = COORDS_FMT % [unit.latitude, unit.longitude]
+            result.geonameid = unit.geonameid
             result.acode = unit.acode
             result.category = POPULATION
             result.fclass = unit.fclass
@@ -168,7 +230,7 @@ class Lemmatizer
             unless capitals.empty?
                 unit = capitals.first
                 result.name = location
-                result.coords = COORDS_FMT % [unit.latitude, unit.longitude]
+                result.geonameid = unit.geonameid
                 result.category = GLOBAL
                 return result
             end
@@ -176,7 +238,7 @@ class Lemmatizer
         else
             unit = countries.first
             result.name = location
-            result.coords = COORDS_FMT % [unit.latitude, unit.longitude]
+            result.geonameid = unit.geonameid
             result.category = GLOBAL
             return result
         end
