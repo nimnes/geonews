@@ -125,15 +125,19 @@ class Lemmatizer
                 locations << location
                 locations_weights[location] = 0.5
 
-                location_unit = Geonames.where("geonameid = '#{location.geonameid}'").first
+                if location.category == GLOBAL
+                    locations_weights[location] = 0.7
+                else
+                    location_unit = Geonames.where("geonameid = '#{location.geonameid}'").first
 
-                if not is_areas and location.fclass != POPULATION_CLASS
-                    is_areas = true
-                end
+                    if not is_areas and location.fclass != POPULATION_CLASS
+                        is_areas = true
+                    end
 
-                if location.fclass == POPULATION_CLASS and location_unit.population > max_population
-                    max_population = location_unit.population
-                    max_population_location = location
+                    if location.fclass == POPULATION_CLASS and location_unit.population > max_population
+                        max_population = location_unit.population
+                        max_population_location = location
+                    end
                 end
             end
         end
@@ -164,13 +168,11 @@ class Lemmatizer
                     if not flag and not is_areas and locations_weights[location] < 0.7
                         locations_weights[location] = 0.7
                     end
-                else
-
                 end
             end
         end
 
-        locations_weights.sort_by {|k,v| v}.reverse[0...2]
+        locations_weights.sort_by {|k,v| v}.reverse[0...3]
     end
 
     def define_location_coords(location)
@@ -230,7 +232,7 @@ class Lemmatizer
             unless capitals.empty?
                 unit = capitals.first
                 result.name = location
-                result.geonameid = unit.geonameid
+                result.geonameid = unit.id
                 result.category = GLOBAL
                 return result
             end
@@ -238,7 +240,7 @@ class Lemmatizer
         else
             unit = countries.first
             result.name = location
-            result.geonameid = unit.geonameid
+            result.geonameid = unit.id
             result.category = GLOBAL
             return result
         end
