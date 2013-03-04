@@ -92,6 +92,7 @@ GEM
       activesupport (= 3.2.11)
       bundler (~> 1.0)
       railties (= 3.2.11)
+    rails_db_dump (0.1.1)
     railties (3.2.11)
       actionpack (= 3.2.11)
       activesupport (= 3.2.11)
@@ -146,6 +147,7 @@ DEPENDENCIES
   json
   pg
   rails (= 3.2.11)
+  rails_db_dump
   sass-rails (~> 3.2.3)
   select2-rails
   uglifier (>= 1.0.3)

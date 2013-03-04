@@ -5,7 +5,7 @@ class StaticPagesController < ApplicationController
     Feedzirra::Feed.add_common_feed_entry_element('location', :as => :location)
 
     def home
-        @news = FeedEntry.where("location <> ''")
+        @news = FeedEntry.where("location IS NOT NULL")
         render :action => "home", :layout => 'map'
     end
 

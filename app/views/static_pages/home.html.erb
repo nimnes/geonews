@@ -25,24 +25,29 @@
 
         for (var i = 0; i < parsed_json.length; i++) {
             var obj = parsed_json[i];
-            var coords = obj.location.split(',');
-            var presetIcon = '';
-            if (obj.category == 'global') {
-                presetIcon = 'twirl#redIcon';
-            } else if (obj.category == 'region') {
-                presetIcon = 'twirl#blueIcon';
-            } else if (obj.category == 'population') {
-                presetIcon = 'twirl#blackIcon';
-            } else {
-                presetIcon = 'twirl#darkgreenIcon';
+            var locations = obj.location.split(';');
+
+            for (var j = 0; j < locations.length; j++) {
+                var coords = locations[j].split(',')
+
+                var presetIcon = '';
+                if (obj.category == 'global') {
+                    presetIcon = 'twirl#redIcon';
+                } else if (obj.category == 'region') {
+                    presetIcon = 'twirl#blueIcon';
+                } else if (obj.category == 'population') {
+                    presetIcon = 'twirl#blackIcon';
+                } else {
+                    presetIcon = 'twirl#darkgreenIcon';
+                }
+                myCollection.add(new ymaps.Placemark([coords[0], coords[1]], {
+                    title: obj.name,
+                    summary: obj.summary,
+                    location: coords[2]
+                }, {
+                    preset: presetIcon
+                }));
             }
-            myCollection.add(new ymaps.Placemark([coords[0], coords[1]], {
-                title: obj.name,
-                summary: obj.summary,
-                location: coords[2]
-            }, {
-                preset: presetIcon
-            }));
         }
         <% end %>
 

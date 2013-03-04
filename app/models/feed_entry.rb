@@ -45,92 +45,119 @@ class FeedEntry < ActiveRecord::Base
 
     def self.update_feeds_location()
         FeedEntry.all.each do |entry|
-            other_tags = ""
-
-            unless entry.tags.nil?
-                # cut old location tag (it's first)
-                tags = entry.tags.split(', ', 2)
-
-                if tags.count <= 1
-                    other_tags = ""
-                else
-                    other_tags = tags[1]
-                end
-            end
-
-            location = @lemmatizer.define_location(entry.name + ". " + entry.summary + ". " + other_tags)
-
-            if location[:name].nil?
-                tags = other_tags.split(', ')
-                self.add_tag(entry, tags)
-            else
-                tags = [location[:name]]
-                unless other_tags.empty?
-                    other_tags = other_tags.split(', ')
-                    other_tags.each do |t|
-                        tags.append(t)
-                    end
-                end
-
-                self.add_tag(entry, tags)
-            end
+            locations = @lemmatizer.define_location(entry.name + '. ' + entry.summary)
+            self.update_location(entry, locations)
         end
     end
 
     def self.add_tag(entry, tags)
-        print entry.guid
-        print tags
-        if tags.nil? or tags.empty?
-            entry.update_attributes({:tags => nil})
-            self.update_location(entry, {:name => nil, :coords => nil, :category => nil})
-            return true
-        end
-
-        tags_str = ""
-
-        tags.each do |tag|
-            tag = UnicodeUtils.upcase(tag)
-
-            if tags_str.blank?
-                tags_str = tag
-            else
-                tags_str += ", " + tag
-            end
-        end
-
-        entry.update_attributes({:tags => tags_str})
-
-        unless tags_str.blank?
-            result = @lemmatizer.define_coords(tags_str.split(', '))
-            self.update_location(entry, result)
-        end
-
-        return true
+        #print entry.guid
+        #print tags
+        #if tags.nil? or tags.empty?
+        #    entry.update_attributes({:tags => nil})
+        #    self.update_location(entry, {:name => nil, :coords => nil, :category => nil})
+        #    return true
+        #end
+        #
+        #tags_str = ""
+        #
+        #tags.each do |tag|
+        #    tag = UnicodeUtils.upcase(tag)
+        #
+        #    if tags_str.blank?
+        #        tags_str = tag
+        #    else
+        #        tags_str += ", " + tag
+        #    end
+        #end
+        #
+        #entry.update_attributes({:tags => tags_str})
+        #
+        #unless tags_str.blank?
+        #    result = @lemmatizer.define_coords(tags_str.split(', '))
+        #    self.update_location(entry, result)
+        #end
+        #
+        #return true
     end
 
     private
     def self.add_entries(entries)
         entries.each do |entry|
             unless exists? :guid => entry.id
-                entry_location = @lemmatizer.define_location(entry.title + ". " + entry.summary)
-                create!(
+                entry_locations = @lemmatizer.define_location(entry.title + '. ' + entry.summary)
+
+                item = create!(
                     :name         => entry.title,
                     :summary      => entry.summary,
                     :url          => entry.url,
                     :published_at => entry.published,
                     :guid         => entry.id,
-                    :location     => entry_location[:coords],
-                    :tags         => entry_location[:name],
-                    :category     => entry_location[:category]
+                    :location     => nil,
+                    :tags         => nil,
+                    :category     => nil
                     )
+
+                self.update_location(item, entry_locations)
             end
         end
         puts "[FEED] #{entries.count} feed entries were added"
     end
 
-    def self.update_location(entry, location)
-        entry.update_attributes({:location => location[:coords]})
-        entry.update_attributes({:category => location[:category]})
+    def self.update_location(entry, locations)
+        locations_str = ''
+        tags = []
+        is_global = false
+        is_regions = false
+
+        locations.each do |location|
+            tags << location[0].name
+
+            # create a list of toponyms coordinates for future displaying on map
+            if location[0].category == 'global'
+                is_global = true
+                unit = Countries.find(location[0].geonameid)
+                locations_str += '%.2f,%.2f' % [unit.latitude, unit.longitude] + ';'
+            else
+                if location[0].category != "population"
+                    is_regions = true
+                end
+                unit = Geonames.where("geonameid = '#{location[0].geonameid}'").first
+                locations_str += '%.2f,%.2f' % [unit.latitude, unit.longitude] + ';'
+            end
+        end
+
+        if locations.count > 0
+            if is_global
+                entry.update_attributes({:category => 'global'})
+            elsif is_regions
+                entry.update_attributes({:category => 'region'})
+            else
+                entry.update_attributes({:category => 'population'})
+            end
+
+            locations_str = locations_str[0...-1]
+        else
+            entry.update_attributes({:category => nil})
+        end
+
+        unless locations_str.blank?
+            entry.update_attributes({:location => locations_str})
+        end
+
+        tags_str = ''
+        tags.each do |tag|
+            tag = UnicodeUtils.upcase(tag)
+
+            if tags_str.blank?
+                tags_str = tag
+            else
+                tags_str += ', ' + tag
+            end
+        end
+        unless tags_str.blank?
+            entry.update_attributes({:tags => tags_str})
+        end
     end
 
     def self.update_from_feed_continuously(feed_url, delay_interval = 15.minutes)

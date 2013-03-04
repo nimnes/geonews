@@ -17,6 +17,7 @@ gem "select2-rails"
 
 gem 'whenever', :require => false
 gem 'pg'
+gem 'rails_db_dump'
 
 # Gems used only for assets and not required
 # in production environments by default.

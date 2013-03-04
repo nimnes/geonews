@@ -83,7 +83,9 @@ class Lemmatizer
 
                         unless t_word.blank?
                             loc_info = self.define_location_coords(t_word + " " + w[:normal_form])
-                            locations << loc_info
+                            unless loc_info.none?
+                                locations << loc_info
+                            end
                         end
                     end
                 end
@@ -94,7 +96,9 @@ class Lemmatizer
                         @morph.is_surname?(normal_sentence[index + 1])
 
                         loc_info = self.define_location_coords(w[:normal_form])
-                        locations << loc_info
+                        unless loc_info.none?
+                            locations << loc_info
+                        end
                     end
                 end
 
@@ -111,14 +115,17 @@ class Lemmatizer
         self.define_locations_weights(entities)
     end
 
-    # returns 2 best locations based on population, number of occurencies in text and other factors
+    # returns 3 best locations based on population, number of occurencies in text and other factors
     def define_locations_weights(entities)
         locations = []
         locations_weights = {}
         is_areas = false
+        is_populations = false
 
         max_population = 0
         max_population_location = nil
+
+        ru_location = nil
 
         entities.each do |entity|
             entity.locations.each do |location|
@@ -128,18 +135,30 @@ class Lemmatizer
                 if location.category == GLOBAL
                     locations_weights[location] = 0.7
                 else
+                    if location.category == RUSSIA
+                        ru_location = location
+                    end
+
                     location_unit = Geonames.where("geonameid = '#{location.geonameid}'").first
 
                     if not is_areas and location.fclass != POPULATION_CLASS
                         is_areas = true
                     end
 
-                    if location.fclass == POPULATION_CLASS and location_unit.population > max_population
-                        max_population = location_unit.population
-                        max_population_location = location
+                    if location.fclass == POPULATION_CLASS
+                        is_populations = true
+                        if location_unit.population > max_population
+                            max_population = location_unit.population
+                            max_population_location = location
+                        end
                     end
                 end
             end
+        end
+
+        # delete Russia from location if there are russian areas or towns in locations
+        if ru_location.present? and (is_areas or is_populations)
+            locations_weights.delete(ru_location)
         end
 
         unless max_population_location.nil?
@@ -156,6 +175,8 @@ class Lemmatizer
 
                 if location.fclass == POPULATION_CLASS
                     flag = false
+
+                    # remove areas which contain this population
                     locations.each do |l|
                         if l.acode == location.acode and l.fclass != POPULATION_CLASS
                             locations_weights[location] = 0.8
@@ -234,7 +255,6 @@ class Lemmatizer
                 result.name = location
                 result.geonameid = unit.id
                 result.category = GLOBAL
-                return result
             end
 
         else
@@ -242,8 +262,9 @@ class Lemmatizer
             result.name = location
             result.geonameid = unit.id
             result.category = GLOBAL
-            return result
         end
+
+        result
     end
 
     def define_coords(locations)
