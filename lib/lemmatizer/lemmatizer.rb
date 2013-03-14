@@ -20,21 +20,24 @@ class Lemmatizer
     def initialize
         @general_reductions = %w("т.е." "см." "т.к." "т.н." "напр." "т.г." "т.о.")
         @geo_reductions = {
-          "г."    => "город",
-          "ул."   => "улица",
-          "с."    => "село",
-          "пр."   => "проспект",
-          "пл."   => "площадь",
-          "пос."  => "поселок",
-          "м."    => "метро",
-          "респ." => "республика",
-          "обл."  => "область",
-          "РФ"    => "Россия"
+          "г. "    => "город ",
+          "ул. "   => "улица ",
+          "с. "    => "село ",
+          "пр. "   => "проспект ",
+          "пл. "   => "площадь ",
+          "пос. "  => "поселок ",
+          "м. "    => "метро ",
+          "респ. " => "республика ",
+          "обл. "  => "область ",
+          "РФ "    => "Россия "
         }
 
         @morph = Morph.new()
         @morph.load_dictionary("./dicts/morphs.mrd", "./dicts/rgramtab.tab")
-        @administative_units = [%w(ОБЛАСТЬ йж), %w(КРАЙ йа)]
+        @administative_units = [ %w(ОБЛАСТЬ йж), %w(КРАЙ йа), %w(РАЙОН йа),
+                                 %w(МОРЕ йм), %w(ОКРУГ йа), %w(ОЗЕРО йм),
+                                 %w(УЛИЦА йж), %w(БУЛЬВАР йа), %w(ПРОСПЕКТ йа),
+                                 %w(ОСТРОВА й)]
     end
 
     def inspect
@@ -64,9 +67,8 @@ class Lemmatizer
 
             prev_word = {}
             normal_sentence.each_with_index do |w, index|
-                puts w
-
-                person = Person.new
+                #puts w
+                person  = Person.new
 
                 if @morph.is_surname?(w)
                     person.surname = w[:normal_form]
@@ -76,15 +78,28 @@ class Lemmatizer
                     persons << person
                 end
 
+                adjective_locations = 0
+                if w[:rule] == 2
+                    puts w
+                    # try to search lemma in Geonames DB
+                    possible_locations(w[:lemma]).each do |pl|
+                        adjective_locations += 1
+                        locations << pl
+                    end
+                end
+
                 # check for areas or regions
                 @administative_units.each do |adm_unit|
                     if w[:normal_form] == adm_unit[0] and prev_word.present?
+                        0.upto(adjective_locations).each do |adj|
+                            locations.pop
+                        end
+
                         t_word = @morph.transform_word(prev_word[:lemma], prev_word[:rule], adm_unit[1])
 
                         unless t_word.blank?
-                            loc_info = self.define_location_coords(t_word + " " + w[:normal_form])
-                            unless loc_info.none?
-                                locations << loc_info
+                            possible_locations(t_word + ' ' + w[:normal_form]).each do |pl|
+                                locations << pl
                             end
                         end
                     end
@@ -95,9 +110,8 @@ class Lemmatizer
                     unless @morph.is_surname?(normal_sentence[index - 1]) or
                         @morph.is_surname?(normal_sentence[index + 1])
 
-                        loc_info = self.define_location_coords(w[:normal_form])
-                        unless loc_info.none?
-                            locations << loc_info
+                        possible_locations(w[:normal_form]).each do |pl|
+                            locations << pl
                         end
                     end
                 end
@@ -181,8 +195,20 @@ class Lemmatizer
                         if l.acode == location.acode and l.fclass != POPULATION_CLASS
                             locations_weights[location] = 0.8
                             locations_weights.delete(l)
+                            locations.delete(l)
+
                             flag = true
-                            break
+                        end
+                    end
+
+                    if flag
+                        # save only population which belongs to some area
+                        # and delete other populations with that name
+                        locations.each do |loc|
+                            if loc.name == location.name and loc.geonameid != location.geonameid
+                                locations_weights.delete(loc)
+                                locations.delete(loc)
+                            end
                         end
                     end
 
@@ -193,7 +219,81 @@ class Lemmatizer
             end
         end
 
+        # if there are populations with same names
+        # save only one with max population
+        locations.each do |loc|
+            if loc.category == GLOBAL
+                locations.each do |loc2|
+                    if loc2.category == GLOBAL and loc.name == loc2.name and loc.geonameid != loc2.geonameid
+                        locations_weights.delete(loc2)
+                        locations.delete(loc2)
+                    end
+                end
+            else
+                unit = Geonames.where("geonameid = '#{loc.geonameid}'").first
+                locations.each do |loc2|
+                    if loc2.category != GLOBAL and loc.name == loc2.name and loc.geonameid != loc2.geonameid
+                        unit2 = Geonames.where("geonameid = '#{loc2.geonameid}'").first
+                        if unit.population > unit2.population
+                            locations_weights.delete(loc2)
+                            locations.delete(loc2)
+                        end
+                    end
+                end
+            end
+        end
+
         locations_weights.sort_by {|k,v| v}.reverse[0...3]
+    end
+
+    def possible_locations(location)
+        locations = []
+
+        units = Geonames.where('name ~* ?', "^#{location}$|^#{location}[,]|[,]#{location}[,]|[,]#{location}$")
+
+        unless units.empty?
+            units.each do |unit|
+                loc = Location.new
+                loc.geonameid = unit.geonameid
+                loc.name = location
+                loc.acode = unit.acode
+                loc.fclass = unit.fclass
+
+                if unit.fclass == POPULATION_CLASS
+                    loc.category = POPULATION
+                elsif unit.geonameid == RUSSIA_ID
+                    loc.category = RUSSIA
+                else
+                    loc.category = REGIONAL
+                end
+                locations << loc
+            end
+        end
+
+        countries = Countries.where('name ~* ?', "^#{location}$|^#{location}[,]|[,]#{location}[,]|[,]#{location}$")
+        if countries.empty?
+            capitals = Countries.where('capital ~* ?', "^#{location}$|^#{location}[,]|[,]#{location}[,]|[,]#{location}$")
+
+            unless capitals.empty?
+                capitals.each do |capital|
+                    loc = Location.new
+                    loc.name = location
+                    loc.geonameid = capital.id
+                    loc.category = GLOBAL
+                    locations << loc
+                end
+            end
+        else
+            countries.each do |country|
+                loc = Location.new
+                loc.name = location
+                loc.geonameid = country.id
+                loc.category = GLOBAL
+                locations << loc
+            end
+        end
+
+        locations
     end
 
     def define_location_coords(location)

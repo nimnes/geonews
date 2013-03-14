@@ -1,5 +1,6 @@
 class FeedEntry < ActiveRecord::Base
     attr_accessible :guid, :name, :published_at, :summary, :url, :location, :tags, :category
+    COMMA = ', '
 
     def self.set_lemmatizer(lem)
         @lemmatizer = lem
@@ -7,6 +8,23 @@ class FeedEntry < ActiveRecord::Base
 
     def self.add_feed(feed_url)
         feed = Feedzirra::Feed.fetch_and_parse(feed_url)
+        add_entries(feed.entries)
+
+        # save feeds in database for future updating
+        if Feeds.where("feed_url = ?", feed_url).empty?
+            puts "[FEED] add feed #{feed_url} to database"
+            Feeds.create!(
+                :title          => feed.title,
+                :url            => feed.url,
+                :feed_url       => feed.feed_url,
+                :etag           => feed.etag,
+                :last_modified  => feed.last_modified
+            )
+        end
+    end
+
+    def self.add_feed_with_proxy(feed_url, proxy_host, proxy_port)
+        feed = Feedzirra::Feed.fetch_and_parse(feed_url, {:proxy_url => proxy_host, :proxy_port => proxy_port})
         add_entries(feed.entries)
 
         # save feeds in database for future updating
@@ -40,7 +58,7 @@ class FeedEntry < ActiveRecord::Base
         end
 
         # delete old news
-        FeedEntry.where("published_at < ?", 1.month.ago).destroy_all
+        FeedEntry.where("published_at < ?", 3.days.ago).destroy_all
     end
 
     def self.update_feeds_location()
@@ -51,34 +69,30 @@ class FeedEntry < ActiveRecord::Base
     end
 
     def self.add_tag(entry, tags)
-        #print entry.guid
-        #print tags
-        #if tags.nil? or tags.empty?
-        #    entry.update_attributes({:tags => nil})
-        #    self.update_location(entry, {:name => nil, :coords => nil, :category => nil})
-        #    return true
-        #end
-        #
-        #tags_str = ""
-        #
-        #tags.each do |tag|
-        #    tag = UnicodeUtils.upcase(tag)
-        #
-        #    if tags_str.blank?
-        #        tags_str = tag
-        #    else
-        #        tags_str += ", " + tag
-        #    end
-        #end
-        #
-        #entry.update_attributes({:tags => tags_str})
-        #
-        #unless tags_str.blank?
-        #    result = @lemmatizer.define_coords(tags_str.split(', '))
-        #    self.update_location(entry, result)
-        #end
-        #
-        #return true
+        if tags.nil? or tags.empty?
+            entry.update_attributes({:tags => nil})
+            self.update_location(entry, {:name => nil, :coords => nil, :category => nil})
+            return true
+        end
+
+        tags_str = ''
+
+        tags.each do |tag|
+            tag = UnicodeUtils.upcase(tag)
+
+            if tags_str.blank?
+                tags_str = tag
+            else
+                tags_str += COMMA + tag
+            end
+        end
+
+        unless tags_str.blank?
+            locations = @lemmatizer.define_location(tags_str)
+            self.update_location(entry, locations)
+        end
+
+        return true
     end
 
     private
@@ -152,22 +166,11 @@ class FeedEntry < ActiveRecord::Base
             if tags_str.blank?
                 tags_str = tag
             else
-                tags_str += ', ' + tag
+                tags_str += COMMA + tag
             end
         end
         unless tags_str.blank?
             entry.update_attributes({:tags => tags_str})
-        end
-    end
-
-    def self.update_from_feed_continuously(feed_url, delay_interval = 15.minutes)
-        feed = Feedzirra::Feed.fetch_and_parse(feed_url)
-        add_entries(feed.entries)
-        loop do
-            sleep delay_interval.to_i
-            puts "[FEED] updating from feed #{feed_url}"
-            feed = Feedzirra::Feed.update(feed)
-            add_entries(feed.new_entries) if feed.updated?
         end
     end
 end

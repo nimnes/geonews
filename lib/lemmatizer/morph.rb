@@ -3,6 +3,8 @@ require "unicode_utils/upcase"
 require "benchmark"
 
 class Morph
+    LOC_RULE = 'лок'
+
     def initialize
         @rules = []
         @rule_frequencies = []
@@ -11,7 +13,7 @@ class Morph
         @endings = Containers::Trie.new
         @gramtab = {}
 
-        @productive_classes = ["NOUN", "С", "Г", 'ИНФИНИТИВ', 'VERB', 'ADJECTIVE', 'П', 'Н']
+        @productive_classes = ['NOUN', 'С', 'Г', 'ИНФИНИТИВ', 'VERB', 'ADJECTIVE', 'П', 'Н']
     end
 
     def load_dictionary(dict_file, gram_file)
@@ -87,7 +89,7 @@ class Morph
             rule_id += 1
         end
 
-        puts "[LEM] " + @rules.length.to_s + " rules loaded."
+        puts '[LEM] ' + @rules.length.to_s + ' rules loaded.'
     end
 
     def load_accents(file)
@@ -105,7 +107,7 @@ class Morph
             @prefixes << line.strip()
         end
 
-        puts "[LEM] " + @prefixes.length.to_s + " prefixes loaded."
+        puts '[LEM] ' + @prefixes.length.to_s + ' prefixes loaded.'
     end
 
     def load_lemmas(file)
@@ -131,7 +133,7 @@ class Morph
             @rule_frequencies[rule_id.to_i] += 1
         end
 
-        puts "[LEM] " + section_lines.length.to_s + " lemmas loaded."
+        puts '[LEM] ' + section_lines.length.to_s + ' lemmas loaded.'
     end
 
     def read_dictionary(file)
@@ -176,6 +178,28 @@ class Morph
             if @lemmas.has_key?(UnicodeUtils.upcase(word_str))
                 annotations = @lemmas.get(UnicodeUtils.upcase(word_str))
 
+                # at first check for location rules
+                annotations.each do |annotation|
+                    gram_info = @gramtab[annotation[2]]
+                    if gram_info.nil? or gram_info[1].nil?
+                        is_location = false
+                    else
+                        is_location = (gram_info[1].include?(LOC_RULE) and not is_quotes)
+                    end
+
+                    if is_location
+                        suffixes = @rules[annotation[0].to_i]
+
+                        suffixes.each do |suffix|
+                            if UnicodeUtils.upcase(word_str) + suffix[0] == UnicodeUtils.upcase(word)
+                                return [ UnicodeUtils.upcase(word_str) + suffixes[0][0],
+                                         UnicodeUtils.upcase(word_str),
+                                         annotation[0].to_i, gram_info, is_location ]
+                            end
+                        end
+                    end
+                end
+
                 # sort possible rules by id number
                 # more general rules have smaller id
                 annotations.sort_by{|k|k[0].to_i}.each do |annotation|
@@ -184,14 +208,9 @@ class Morph
                     suffixes.each do |suffix|
                         if UnicodeUtils.upcase(word_str) + suffix[0] == UnicodeUtils.upcase(word)
                             gram_info = @gramtab[annotation[2]]
-                            if gram_info.nil? or gram_info[1].nil?
-                                is_location = false
-                            else
-                                is_location = (gram_info[1].include?('лок') and not is_quotes)
-                            end
                             return [ UnicodeUtils.upcase(word_str) + suffixes[0][0],
                                      UnicodeUtils.upcase(word_str),
-                                     annotation[0].to_i, gram_info, is_location ]
+                                     annotation[0].to_i, gram_info, false ]
                         end
                     end
                 end
@@ -220,7 +239,6 @@ class Morph
         # try to predict a lemma
         5.downto(1).each do |i|
             word_suffix = word[word.length - i..word.length]
-            # puts word_suffix
 
             # try to found 5,4,3... suffixes of our word in list of endings
             # if we found it then return predicted normal form of word
@@ -260,7 +278,7 @@ class Morph
             end
         end
 
-        %w("" "" "" "")
+        %w("" "" "" "" '')
     end
 
     def normalize_words(words)
