@@ -5,8 +5,9 @@ class Lemmatizer
     Entity = Struct.new(:locations, :persons, :time)
     Location = Struct.new(:geonameid, :name, :fclass, :acode, :category)
     Person = Struct.new(:name, :surname, :middlename)
+    Context = Struct.new(:toponym, :left, :right)
 
-    RUSSIA_ID = "2017370"
+    RUSSIA_ID = '2017370'
 
     POPULATION = "population"
     RUSSIA = "russia"
@@ -15,7 +16,9 @@ class Lemmatizer
 
     COORDS_FMT = "%.2f,%.2f"
 
-    POPULATION_CLASS = "P"
+    POPULATION_CLASS = 'P'
+
+    CONTEXT_SIZE = 3
 
     def initialize
         @general_reductions = %w("т.е." "см." "т.к." "т.н." "напр." "т.г." "т.о.")
@@ -41,12 +44,13 @@ class Lemmatizer
     end
 
     def inspect
-        "Lemmatizer"
+        'Lemmatizer'
     end
 
-    def define_location(text)
+    def define_location(text, entry_id = nil)
         sentences = parse_sentences(text)
         entities = []
+        learning_items = []
 
         # parse sentences of feeds entry, result is table
         # | SENTENCE  |   LOCATION   |   PERSON   |   TIME   |
@@ -67,7 +71,6 @@ class Lemmatizer
 
             prev_word = {}
             normal_sentence.each_with_index do |w, index|
-                #puts w
                 person  = Person.new
 
                 if @morph.is_surname?(w)
@@ -81,10 +84,23 @@ class Lemmatizer
                 adjective_locations = 0
                 if w[:rule] == 2
                     puts w
+
                     # try to search lemma in Geonames DB
-                    possible_locations(w[:lemma]).each do |pl|
+                    possible_locations = possible_locations(w[:lemma])
+                    possible_locations.each do |pl|
                         adjective_locations += 1
                         locations << pl
+                    end
+
+                    if possible_locations.present? and not LearningCorpus.has_entry?(entry_id)
+                        left_context = self.get_left_context(normal_sentence, index)
+                        right_context = self.get_right_context(normal_sentence, index)
+
+                        context = Context.new
+                        context.toponym = w[:lemma]
+                        context.left = left_context
+                        context.right = right_context
+                        learning_items << context
                     end
                 end
 
@@ -98,7 +114,19 @@ class Lemmatizer
                         t_word = @morph.transform_word(prev_word[:lemma], prev_word[:rule], adm_unit[1])
 
                         unless t_word.blank?
-                            possible_locations(t_word + ' ' + w[:normal_form]).each do |pl|
+                            possible_locations = self.possible_locations(t_word + ' ' + w[:normal_form])
+                            if possible_locations.present? and not LearningCorpus.has_entry?(entry_id)
+                                left_context = self.get_left_context(normal_sentence, index - 1)
+                                right_context = self.get_right_context(normal_sentence, index)
+
+                                context = Context.new
+                                context.toponym = t_word + ' ' + w[:normal_form]
+                                context.left = left_context
+                                context.right = right_context
+                                learning_items << context
+                            end
+
+                            possible_locations.each do |pl|
                                 locations << pl
                             end
                         end
@@ -110,8 +138,20 @@ class Lemmatizer
                     unless @morph.is_surname?(normal_sentence[index - 1]) or
                         @morph.is_surname?(normal_sentence[index + 1])
 
-                        possible_locations(w[:normal_form]).each do |pl|
+                        possible_locations = possible_locations(w[:normal_form])
+                        possible_locations.each do |pl|
                             locations << pl
+                        end
+
+                        if possible_locations.present? and not LearningCorpus.has_entry?(entry_id)
+                            left_context = self.get_left_context(normal_sentence, index)
+                            right_context = self.get_right_context(normal_sentence, index)
+
+                            context = Context.new
+                            context.toponym = w[:normal_form]
+                            context.left = left_context
+                            context.right = right_context
+                            learning_items << context
                         end
                     end
                 end
@@ -126,7 +166,62 @@ class Lemmatizer
             entities << entity
         end
 
-        self.define_locations_weights(entities)
+        best_locations = self.define_locations_weights(entities)
+
+        unless learning_items.empty?
+            referents = ''
+
+            best_locations.each do |loc|
+                # use prefix because of two DBs: Countries (World) and Geonames (Russia)
+                if loc[0].category == GLOBAL
+                    referents += 'c' + loc[0].geonameid.to_s + ';'
+                else
+                    referents += 'g' + loc[0].geonameid.to_s + ';'
+                end
+            end
+
+            unless referents.blank?
+                referents = referents[0...-1]
+            end
+
+            learning_items.each do |litem|
+                LearningCorpus.add_toponym(litem, referents, entry_id)
+            end
+        end
+
+        # if location is undefined, try to find similar entities in learning corpus
+        if best_locations.empty?
+
+        else
+            best_locations
+        end
+    end
+
+    def get_left_context(sentense, index)
+        if index == 0
+            return []
+        end
+
+        left_context = @morph.remove_stop_words(sentense[0...index])
+        if left_context.count <= CONTEXT_SIZE
+            left_context
+        else
+            left_context[left_context.count - CONTEXT_SIZE...left_context.count]
+        end
+
+    end
+
+    def get_right_context(sentense, index)
+        if index == sentense.count
+            return []
+        end
+
+        right_context = @morph.remove_stop_words(sentense[index + 1...sentense.count])
+        if right_context.count <= CONTEXT_SIZE
+            right_context
+        else
+            right_context[0...CONTEXT_SIZE]
+        end
     end
 
     # returns 3 best locations based on population, number of occurencies in text and other factors
@@ -248,6 +343,10 @@ class Lemmatizer
 
     def possible_locations(location)
         locations = []
+
+        if location.blank?
+            return locations
+        end
 
         units = Geonames.where('name ~* ?', "^#{location}$|^#{location}[,]|[,]#{location}[,]|[,]#{location}$")
 
@@ -426,7 +525,7 @@ class Lemmatizer
         # remove all reductions from sentences, beacause it isn't influence on semantic meaning 
         # and ease parsing text on sentences
         @general_reductions.each do |gd|
-            text = text.gsub(gd, "")
+            text = text.gsub(gd, '')
         end
 
         ## replace geo reductions with full name in first form
@@ -439,7 +538,7 @@ class Lemmatizer
 
     def parse_words(sentence)
         # remove punctuation
-        sentence = sentence.gsub(/[\.\?!:;,`~—]/, "")
+        sentence = sentence.gsub(/[\.\?!:;,`~—]/, '')
         sentence.split(/\s+/)
     end
 

@@ -63,7 +63,7 @@ class FeedEntry < ActiveRecord::Base
 
     def self.update_feeds_location()
         FeedEntry.all.each do |entry|
-            locations = @lemmatizer.define_location(entry.name + '. ' + entry.summary)
+            locations = @lemmatizer.define_location(entry.name + '. ' + entry.summary, entry.id)
             self.update_location(entry, locations)
         end
     end
@@ -99,7 +99,7 @@ class FeedEntry < ActiveRecord::Base
     def self.add_entries(entries)
         entries.each do |entry|
             unless exists? :guid => entry.id
-                entry_locations = @lemmatizer.define_location(entry.title + '. ' + entry.summary)
+                entry_locations = @lemmatizer.define_location(entry.title + '. ' + entry.summary, entry.id)
 
                 item = create!(
                     :name         => entry.title,
@@ -123,6 +123,10 @@ class FeedEntry < ActiveRecord::Base
         tags = []
         is_global = false
         is_regions = false
+
+        if locations.nil?
+            locations = []
+        end
 
         locations.each do |location|
             tags << location[0].name

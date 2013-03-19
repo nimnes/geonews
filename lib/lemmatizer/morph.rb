@@ -1,6 +1,6 @@
 # encoding: utf-8
-require "unicode_utils/upcase"
-require "benchmark"
+require 'unicode_utils/upcase'
+require 'benchmark'
 
 class Morph
     LOC_RULE = 'лок'
@@ -13,24 +13,25 @@ class Morph
         @endings = Containers::Trie.new
         @gramtab = {}
 
-        @productive_classes = ['NOUN', 'С', 'Г', 'ИНФИНИТИВ', 'VERB', 'ADJECTIVE', 'П', 'Н']
+        @productive_classes = ['NOUN', 'С', 'Г', 'ИНФИНИТИВ', 'VERB', 'ADJECTIVE', 'П', 'Н', 'КР_ПРИЛ']
+        @context_classes = ['NOUN', 'С', 'ADJECTIVE', 'П', 'КР_ПРИЛ']
     end
 
     def load_dictionary(dict_file, gram_file)
-        puts "[LEM] loading dictionary " + dict_file + " with gramtab " + gram_file + "..."
+        puts '[LEM] loading dictionary ' + dict_file + ' with gramtab ' + gram_file + '...'
 
-        dictionary_file = File.new(dict_file, "r")
-        gramtab_file = File.new(gram_file, "r")
+        dictionary_file = File.new(dict_file, 'r')
+        gramtab_file = File.new(gram_file, 'r')
 
         time = Benchmark.realtime do
             read_dictionary(dictionary_file)
         end
-        puts "[LEM] dictionary was loaded in #{"%.3f" % time} seconds"
+        puts "[LEM] dictionary was loaded in #{'%.3f' % time} seconds"
 
         time = Benchmark.realtime do
             read_gramtab(gramtab_file)
         end
-        puts "[LEM] gramtab file was loaded in #{"%.3f" % time} seconds"
+        puts "[LEM] gramtab file was loaded in #{'%.3f' % time} seconds"
 
     end
 
@@ -316,7 +317,7 @@ class Morph
             return false
         end
 
-        word[:annotation][1].include?("фам")
+        word[:annotation][1].include?('фам')
     end
 
     def is_name?(word)
@@ -324,7 +325,7 @@ class Morph
             return false
         end
 
-        word[:annotation][1].include?("имя")
+        word[:annotation][1].include?('имя')
     end
 
     def is_middle_name?(word)
@@ -332,7 +333,7 @@ class Morph
             return false
         end
 
-        word[:annotation][1].include?("отч")
+        word[:annotation][1].include?('отч')
     end
 
     def get_rule(rule_id)
@@ -341,5 +342,24 @@ class Morph
 
     def get_lemma(lemma)
         puts @lemmas.get(lemma)
+    end
+
+    # leave only nouns and adjectives
+    # this function is used for getting context of toponym
+    def remove_stop_words(words)
+        context_words = []
+        words.each do |word|
+            rules = @rules[word[:rule].to_i]
+
+            rules.each do |rule|
+                if word[:lemma] + rule[0] == UnicodeUtils.upcase(word[:word])
+                    if @context_classes.include?(@gramtab[rule[1]][0])
+                        context_words << word[:normal_form]
+                        break
+                    end
+                end
+            end
+        end
+        context_words
     end
 end
