@@ -18,7 +18,7 @@ class Lemmatizer
 
     POPULATION_CLASS = 'P'
 
-    CONTEXT_SIZE = 3
+    CONTEXT_SIZE = 4
 
     def initialize
         @general_reductions = %w("т.е." "см." "т.к." "т.н." "напр." "т.г." "т.о.")
@@ -51,6 +51,7 @@ class Lemmatizer
         sentences = parse_sentences(text)
         entities = []
         learning_items = []
+        predicted_locations = []
 
         # parse sentences of feeds entry, result is table
         # | SENTENCE  |   LOCATION   |   PERSON   |   TIME   |
@@ -159,6 +160,14 @@ class Lemmatizer
                 prev_word = w
             end
 
+            # view similar sentences in LearningCorpus
+            # it can help for future prediction of location
+            similar_entries = LearningCorpus.get_similar_entries(@morph.remove_stop_words(normal_sentence))
+
+            unless similar_entries.empty?
+                predicted_locations << similar_entries.first
+            end
+
             entity.locations = locations
             entity.persons = persons
             entity.time = nil
@@ -180,7 +189,9 @@ class Lemmatizer
                 end
             end
 
-            unless referents.blank?
+            if referents.blank?
+                return best_locations
+            else
                 referents = referents[0...-1]
             end
 
@@ -188,13 +199,27 @@ class Lemmatizer
                 LearningCorpus.add_toponym(litem, referents, entry_id)
             end
         end
-
-        # if location is undefined, try to find similar entities in learning corpus
-        if best_locations.empty?
-
-        else
+        #
+        ## if location is undefined, try to find similar entities in learning corpus
+        #if best_locations.empty?
+        #    unless predicted_locations.empty?
+        #        predicted_locations = predicted_locations.sort_by {|x,y| y}[0...3]
+        #
+        #        predicted_locations.each do |pl, score|
+        #            puts 'L: ' + pl.left + ' R: ' + pl.right + ' T: ' + pl.toponym + ' R: ' + pl.referents
+        #            loc = Location.new
+        #            loc.geonameid = pl.referents.split(';').first
+        #            loc.name = pl.toponym
+        #            loc.category = 'predicted'
+        #
+        #            best_locations << [loc, score]
+        #        end
+        #
+        #        return best_locations
+        #    end
+        #else
             best_locations
-        end
+        #end
     end
 
     def get_left_context(sentense, index)
@@ -511,7 +536,7 @@ class Lemmatizer
                 end
 
             else
-                coords = "%.2f,%.2f" % [countries[0].latitude, countries[0].longitude]
+                coords = '%.2f,%.2f' % [countries[0].latitude, countries[0].longitude]
                 return {coords: coords, name: countries[0].name, category: "global"}
             end
         end
@@ -538,7 +563,7 @@ class Lemmatizer
 
     def parse_words(sentence)
         # remove punctuation
-        sentence = sentence.gsub(/[\.\?!:;,`~—]/, '')
+        sentence = sentence.gsub(/[\(\)\.\?!:;,`~—]/, '')
         sentence.split(/\s+/)
     end
 

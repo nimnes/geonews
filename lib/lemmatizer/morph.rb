@@ -279,21 +279,24 @@ class Morph
             end
         end
 
-        %w("" "" "" "" '')
+        nil
     end
 
     def normalize_words(words)
         normal_words = []
         words.each do |w|
             normal_form = normalize(w)
-            h = { word:  w,
-                  normal_form: normal_form[0],
-                  lemma: normal_form[1],
-                  rule: normal_form[2],
-                  annotation: normal_form[3],
-                  is_location: normal_form[4]
-                }
-            normal_words << h
+
+            unless normal_form.nil?
+                h = { word:  w,
+                      normal_form: normal_form[0],
+                      lemma: normal_form[1],
+                      rule: normal_form[2],
+                      annotation: normal_form[3],
+                      is_location: normal_form[4]
+                    }
+                normal_words << h
+            end
         end
 
         normal_words
@@ -304,7 +307,7 @@ class Morph
         if rule_id.nil?
             return ""
         end
-        @rules[rule_id].each do |r|
+        @rules[rule_id.to_i].each do |r|
             if r[1] == annotation
                 return lemma + r[0]
             end

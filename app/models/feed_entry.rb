@@ -123,6 +123,7 @@ class FeedEntry < ActiveRecord::Base
         tags = []
         is_global = false
         is_regions = false
+        is_predicted = false
 
         if locations.nil?
             locations = []
@@ -136,6 +137,15 @@ class FeedEntry < ActiveRecord::Base
                 is_global = true
                 unit = Countries.find(location[0].geonameid)
                 locations_str += '%.2f,%.2f' % [unit.latitude, unit.longitude] + ';'
+            elsif location[0].category == 'predicted'
+                is_predicted = true
+                if location[0].geonameid.start_with?('g')
+                    unit = Geonames.where("geonameid = '#{location[0].geonameid[1..-1]}'").first
+                    locations_str += '%.2f,%.2f' % [unit.latitude, unit.longitude] + ';'
+                else
+                    unit = Countries.find(location[0].geonameid[1..-1])
+                    locations_str += '%.2f,%.2f' % [unit.latitude, unit.longitude] + ';'
+                end
             else
                 if location[0].category != "population"
                     is_regions = true
@@ -150,6 +160,8 @@ class FeedEntry < ActiveRecord::Base
                 entry.update_attributes({:category => 'global'})
             elsif is_regions
                 entry.update_attributes({:category => 'region'})
+            elsif is_predicted
+                entry.update_attributes({:category => 'predicted'})
             else
                 entry.update_attributes({:category => 'population'})
             end
