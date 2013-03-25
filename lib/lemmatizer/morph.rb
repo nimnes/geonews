@@ -13,8 +13,8 @@ class Morph
         @endings = Containers::Trie.new
         @gramtab = {}
 
-        @productive_classes = ['NOUN', 'С', 'Г', 'ИНФИНИТИВ', 'VERB', 'ADJECTIVE', 'П', 'Н', 'КР_ПРИЛ']
-        @context_classes = ['NOUN', 'С', 'ADJECTIVE', 'П', 'КР_ПРИЛ']
+        @productive_classes = %w('NOUN' 'С' 'Г' 'ИНФИНИТИВ' 'VERB' 'ADJECTIVE' 'П' 'Н' 'КР_ПРИЛ')
+        @context_classes = %w('NOUN' 'С' 'ADJECTIVE' 'П' 'КР_ПРИЛ')
     end
 
     def load_dictionary(dict_file, gram_file)
@@ -167,7 +167,7 @@ class Morph
         is_quotes = false
         if (word.start_with?("\"") and word.end_with?("\"")) or
             (word.start_with?("'") and word.end_with?("'"))
-            word = word.gsub(/["']/, "")
+            word = word.gsub(/["']/, '')
             is_quotes = true
         end
         word_str = word
@@ -277,6 +277,22 @@ class Morph
                     return [UnicodeUtils.upcase(predicted_word), word[0..-(i + 1)], best_rule, gram_info, is_location]
                 end
             end
+        end
+
+        nil
+    end
+
+    def normalize_word(word)
+        normal_form = normalize(word)
+
+        unless normal_form.nil?
+            return { word:  word,
+                  normal_form: normal_form[0],
+                  lemma: normal_form[1],
+                  rule: normal_form[2],
+                  annotation: normal_form[3],
+                  is_location: normal_form[4]
+            }
         end
 
         nil

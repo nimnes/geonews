@@ -19,6 +19,8 @@ gem 'whenever', :require => false
 gem 'pg'
 gem 'rails_db_dump'
 
+gem 'colorize'
+
 # Gems used only for assets and not required
 # in production environments by default.
 group :assets do

@@ -11,7 +11,7 @@
 #
 # It's strongly recommended to check this file into your version control system.
 
-ActiveRecord::Schema.define(:version => 20130319132855) do
+ActiveRecord::Schema.define(:version => 20130325083211) do
 
   create_table "countries", :force => true do |t|
     t.string   "code"
@@ -59,13 +59,12 @@ ActiveRecord::Schema.define(:version => 20130319132855) do
   end
 
   create_table "learning_corpus", :force => true do |t|
-    t.text     "left"
-    t.text     "right"
     t.string   "toponym"
+    t.text     "context"
     t.text     "referents"
+    t.string   "entryid"
     t.datetime "created_at", :null => false
     t.datetime "updated_at", :null => false
-    t.string   "entryid"
   end
 
 end

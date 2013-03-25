@@ -58,13 +58,19 @@ class FeedEntry < ActiveRecord::Base
         end
 
         # delete old news
-        FeedEntry.where("published_at < ?", 3.days.ago).destroy_all
+        FeedEntry.where('published_at < ?', 3.days.ago).destroy_all
     end
 
     def self.update_feeds_location()
+        completed = 0
         FeedEntry.all.each do |entry|
             locations = @lemmatizer.define_location(entry.name + '. ' + entry.summary, entry.id)
             self.update_location(entry, locations)
+            completed += 1
+
+            if completed % 500 == 0
+                puts "#{completed} entries processed"
+            end
         end
     end
 
@@ -121,58 +127,48 @@ class FeedEntry < ActiveRecord::Base
     def self.update_location(entry, locations)
         locations_str = ''
         tags = []
-        is_global = false
-        is_regions = false
-        is_predicted = false
+        categories = []
 
         if locations.nil?
             locations = []
         end
 
-        locations.each do |location|
-            tags << location[0].name
+        locations.each do |location, score|
+            tags << location.name
 
             # create a list of toponyms coordinates for future displaying on map
-            if location[0].category == 'global'
-                is_global = true
-                unit = Countries.find(location[0].geonameid)
-                locations_str += '%.2f,%.2f' % [unit.latitude, unit.longitude] + ';'
-            elsif location[0].category == 'predicted'
-                is_predicted = true
-                if location[0].geonameid.start_with?('g')
-                    unit = Geonames.where("geonameid = '#{location[0].geonameid[1..-1]}'").first
-                    locations_str += '%.2f,%.2f' % [unit.latitude, unit.longitude] + ';'
-                else
-                    unit = Countries.find(location[0].geonameid[1..-1])
-                    locations_str += '%.2f,%.2f' % [unit.latitude, unit.longitude] + ';'
-                end
+            if location.category == GLOBAL
+                categories << GLOBAL
+
+                unit = Countries.find(location.geonameid)
+                locations_str += COORDS_FMT % [unit.latitude, unit.longitude] + ';'
             else
-                if location[0].category != "population"
-                    is_regions = true
+                if location.category == POPULATION
+                    categories << POPULATION
+                else
+                    categories << REGIONAL
                 end
-                unit = Geonames.where("geonameid = '#{location[0].geonameid}'").first
-                locations_str += '%.2f,%.2f' % [unit.latitude, unit.longitude] + ';'
+
+                unit = Geonames.where("geonameid = '#{location.geonameid}'").first
+                locations_str += COORDS_FMT % [unit.latitude, unit.longitude] + ';'
             end
         end
 
-        if locations.count > 0
-            if is_global
-                entry.update_attributes({:category => 'global'})
-            elsif is_regions
-                entry.update_attributes({:category => 'region'})
-            elsif is_predicted
-                entry.update_attributes({:category => 'predicted'})
+        if locations.present?
+            if categories.include?(GLOBAL)
+                entry.update_attributes({:category => GLOBAL})
+            elsif categories.include?(REGIONAL)
+                entry.update_attributes({:category => REGIONAL})
             else
-                entry.update_attributes({:category => 'population'})
+                entry.update_attributes({:category => POPULATION})
             end
 
             locations_str = locations_str[0...-1]
-        else
-            entry.update_attributes({:category => nil})
-        end
-
-        unless locations_str.blank?
             entry.update_attributes({:location => locations_str})
+        else
+            entry.update_attributes({:location => nil})
+            entry.update_attributes({:category => nil})
+            entry.update_attributes({:tags => nil})
         end
 
         tags_str = ''
@@ -185,7 +181,8 @@ class FeedEntry < ActiveRecord::Base
                 tags_str += COMMA + tag
             end
         end
-        unless tags_str.blank?
+
+        if tags_str.present?
             entry.update_attributes({:tags => tags_str})
         end
     end

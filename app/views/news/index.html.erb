@@ -1,0 +1,41 @@
+<div class="row">
+  <div class="span12">
+    <ul class="nav nav-pills">
+      <li class="<%= 'active' if params[:category] == "local" %>"><a href="/news?category=local">Российские новости</a></li>
+      <li class="<%= 'active' if params[:category] == "global" %>"><a href="/news?category=global">Мировые новости</a></li>
+      <li class="<%= 'active' if params[:category] == "predicted" %>"><a href="/news?category=predicted">Ванга</a></li>
+      <li class="<%= 'active' if params[:category].nil? %>"><a href="/news">Новости без позиции</a></li>
+    </ul>
+  </div>
+</div>
+
+<div class="row">
+  <div class="span8">
+    <% if @news.any? %>
+        <h3>Новости [ <%= @news.count %> / <%= "%.1f" % (@news.count.to_f / @total.to_f * 100) %>% ]</h3>
+        <ol class="news">
+          <%= render 'layouts/news_entry' %>
+        </ol>
+        <%= will_paginate @news %>
+    <% end %>
+  </div>
+</div>
+
+<div id="addTag" class="modal hide fade">
+    <div class="modal-header">
+      <div class="close" data-dismiss="modal"><a href="/">x</a></div>
+     <h3>Добавить тег</h3>
+    </div>
+    <div class="modal-body center">
+      <form action="/addTag" data-remote="true" method="post">
+        <input type="text" class="input-large" placeholder="Введите название тега"/>
+
+    <div class="modal-footer">
+      <a href="#" class="close btn" data-dismiss="modal">Отмена</a>
+      <input class="btn btn-primary" name="add_tag" type="button" value="Добавить"/>
+    </div>
+      </form>
+  </div>
+
+</div>
+

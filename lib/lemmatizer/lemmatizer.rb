@@ -7,36 +7,23 @@ class Lemmatizer
     Person = Struct.new(:name, :surname, :middlename)
     Context = Struct.new(:toponym, :left, :right)
 
-    RUSSIA_ID = '2017370'
-
-    POPULATION = "population"
-    RUSSIA = "russia"
-    GLOBAL = "global"
-    REGIONAL = "region"
-
-    COORDS_FMT = "%.2f,%.2f"
-
-    POPULATION_CLASS = 'P'
-
-    CONTEXT_SIZE = 4
-
     def initialize
         @general_reductions = %w("т.е." "см." "т.к." "т.н." "напр." "т.г." "т.о.")
         @geo_reductions = {
-          "г. "    => "город ",
-          "ул. "   => "улица ",
-          "с. "    => "село ",
-          "пр. "   => "проспект ",
-          "пл. "   => "площадь ",
-          "пос. "  => "поселок ",
-          "м. "    => "метро ",
-          "респ. " => "республика ",
-          "обл. "  => "область ",
-          "РФ "    => "Россия "
+          'г. '    => 'город ',
+          'ул. '   => 'улица ',
+          'с. '    => 'село ',
+          'пр. '   => 'проспект ',
+          'пл. '   => 'площадь ',
+          'пос. '  => 'поселок ',
+          'м. '    => 'метро ',
+          'респ. ' => 'республика ',
+          'обл. '  => 'область ',
+          'РФ '    => 'Россия '
         }
 
         @morph = Morph.new()
-        @morph.load_dictionary("./dicts/morphs.mrd", "./dicts/rgramtab.tab")
+        @morph.load_dictionary('./dicts/morphs.mrd', './dicts/rgramtab.tab')
         @administative_units = [ %w(ОБЛАСТЬ йж), %w(КРАЙ йа), %w(РАЙОН йа),
                                  %w(МОРЕ йм), %w(ОКРУГ йа), %w(ОЗЕРО йм),
                                  %w(УЛИЦА йж), %w(БУЛЬВАР йа), %w(ПРОСПЕКТ йа),
@@ -84,30 +71,23 @@ class Lemmatizer
 
                 adjective_locations = 0
                 if w[:rule] == 2
-                    puts w
+                    # search lemma in dictionary
+                    # if it is in locations dictionary then try to find it in Geonames or Countries DBs
+                    normal_form = @morph.normalize_word(w[:lemma])
 
-                    # try to search lemma in Geonames DB
-                    possible_locations = possible_locations(w[:lemma])
-                    possible_locations.each do |pl|
-                        adjective_locations += 1
-                        locations << pl
-                    end
-
-                    if possible_locations.present? and not LearningCorpus.has_entry?(entry_id)
-                        left_context = self.get_left_context(normal_sentence, index)
-                        right_context = self.get_right_context(normal_sentence, index)
-
-                        context = Context.new
-                        context.toponym = w[:lemma]
-                        context.left = left_context
-                        context.right = right_context
-                        learning_items << context
+                    if not normal_form.nil? and normal_form[:is_location]
+                        self.possible_locations(w[:lemma]).each do |pl|
+                            adjective_locations += 1
+                            locations << pl
+                        end
                     end
                 end
 
                 # check for areas or regions
                 @administative_units.each do |adm_unit|
                     if w[:normal_form] == adm_unit[0] and prev_word.present?
+
+                        # delete adjective locations if there is area keyword after it
                         0.upto(adjective_locations).each do |adj|
                             locations.pop
                         end
@@ -115,19 +95,7 @@ class Lemmatizer
                         t_word = @morph.transform_word(prev_word[:lemma], prev_word[:rule], adm_unit[1])
 
                         unless t_word.blank?
-                            possible_locations = self.possible_locations(t_word + ' ' + w[:normal_form])
-                            if possible_locations.present? and not LearningCorpus.has_entry?(entry_id)
-                                left_context = self.get_left_context(normal_sentence, index - 1)
-                                right_context = self.get_right_context(normal_sentence, index)
-
-                                context = Context.new
-                                context.toponym = t_word + ' ' + w[:normal_form]
-                                context.left = left_context
-                                context.right = right_context
-                                learning_items << context
-                            end
-
-                            possible_locations.each do |pl|
+                            self.possible_locations(t_word + ' ' + w[:normal_form]).each do |pl|
                                 locations << pl
                             end
                         end
@@ -139,20 +107,8 @@ class Lemmatizer
                     unless @morph.is_surname?(normal_sentence[index - 1]) or
                         @morph.is_surname?(normal_sentence[index + 1])
 
-                        possible_locations = possible_locations(w[:normal_form])
-                        possible_locations.each do |pl|
+                        self.possible_locations(w[:normal_form]).each do |pl|
                             locations << pl
-                        end
-
-                        if possible_locations.present? and not LearningCorpus.has_entry?(entry_id)
-                            left_context = self.get_left_context(normal_sentence, index)
-                            right_context = self.get_right_context(normal_sentence, index)
-
-                            context = Context.new
-                            context.toponym = w[:normal_form]
-                            context.left = left_context
-                            context.right = right_context
-                            learning_items << context
                         end
                     end
                 end
@@ -162,11 +118,11 @@ class Lemmatizer
 
             # view similar sentences in LearningCorpus
             # it can help for future prediction of location
-            similar_entries = LearningCorpus.get_similar_entries(@morph.remove_stop_words(normal_sentence))
-
-            unless similar_entries.empty?
-                predicted_locations << similar_entries.first
-            end
+            #similar_entries = LearningCorpus.get_similar_entries(@morph.remove_stop_words(normal_sentence))
+            #
+            #unless similar_entries.empty?
+            #    predicted_locations << similar_entries.first
+            #end
 
             entity.locations = locations
             entity.persons = persons
@@ -175,31 +131,35 @@ class Lemmatizer
             entities << entity
         end
 
+        unless LearningCorpus.has_entry?(entry_id)
+
+        end
+
         best_locations = self.define_locations_weights(entities)
 
-        unless learning_items.empty?
-            referents = ''
-
-            best_locations.each do |loc|
-                # use prefix because of two DBs: Countries (World) and Geonames (Russia)
-                if loc[0].category == GLOBAL
-                    referents += 'c' + loc[0].geonameid.to_s + ';'
-                else
-                    referents += 'g' + loc[0].geonameid.to_s + ';'
-                end
-            end
-
-            if referents.blank?
-                return best_locations
-            else
-                referents = referents[0...-1]
-            end
-
-            learning_items.each do |litem|
-                LearningCorpus.add_toponym(litem, referents, entry_id)
-            end
-        end
+        #unless learning_items.empty?
+        #    referents = ''
         #
+        #    best_locations.each do |loc|
+        #        # use prefix because of two DBs: Countries (World) and Geonames (Russia)
+        #        if loc[0].category == GLOBAL
+        #            referents += 'c' + loc[0].geonameid.to_s + ';'
+        #        else
+        #            referents += 'g' + loc[0].geonameid.to_s + ';'
+        #        end
+        #    end
+        #
+        #    if referents.blank?
+        #        return best_locations
+        #    else
+        #        referents = referents[0...-1]
+        #    end
+        #
+        #    learning_items.each do |litem|
+        #        LearningCorpus.add_toponym(litem, referents, entry_id)
+        #    end
+        #end
+
         ## if location is undefined, try to find similar entities in learning corpus
         #if best_locations.empty?
         #    unless predicted_locations.empty?
@@ -218,7 +178,7 @@ class Lemmatizer
         #        return best_locations
         #    end
         #else
-            best_locations
+        #    best_locations
         #end
     end
 
@@ -418,130 +378,6 @@ class Lemmatizer
         end
 
         locations
-    end
-
-    def define_location_coords(location)
-        result = Location.new
-        adm_units = []
-        population_units = []
-
-        # search location in Geonames database
-        units = Geonames.where('name ~* ?', "^#{location}$|^#{location}[,]|[,]#{location}[,]|[,]#{location}$")
-
-        # split possible locations by class (towns or areas)
-        units.each do |unit|
-            if unit.fclass == POPULATION_CLASS
-                population_units << unit
-            else
-                adm_units << unit
-            end
-        end
-
-        # choose settlement with max population or administrative region with minimal population
-        if population_units.empty?
-            unless adm_units.empty?
-                unit = adm_units.last
-
-                if unit.geonameid == RUSSIA_ID
-                    result.geonameid = unit.geonameid
-                    result.name = location
-                    result.acode = unit.acode
-                    result.category = RUSSIA
-                    result.fclass = unit.fclass
-                    return result
-                else
-                    result.geonameid = unit.geonameid
-                    result.name = location
-                    result.acode = unit.acode
-                    result.category = REGIONAL
-                    result.fclass = unit.fclass
-                    return result
-                end
-            end
-        else
-            unit = population_units.first
-            result.name = location
-            result.geonameid = unit.geonameid
-            result.acode = unit.acode
-            result.category = POPULATION
-            result.fclass = unit.fclass
-            return result
-        end
-
-        # if location isn't defined try to search it in countries database
-        countries = Countries.where('name ~* ?', "^#{location}$|^#{location}[,]|[,]#{location}[,]|[,]#{location}$")
-
-        if countries.empty?
-            capitals = Countries.where('capital ~* ?', "^#{location}$|^#{location}[,]|[,]#{location}[,]|[,]#{location}$")
-
-            unless capitals.empty?
-                unit = capitals.first
-                result.name = location
-                result.geonameid = unit.id
-                result.category = GLOBAL
-            end
-
-        else
-            unit = countries.first
-            result.name = location
-            result.geonameid = unit.id
-            result.category = GLOBAL
-        end
-
-        result
-    end
-
-    def define_coords(locations)
-        adm_units = []
-        population_units = []
-
-        locations.each do |location|
-            # search location in Geonames database
-            units = Geonames.where('name ~* ?', "^#{location}$|^#{location}[,]|[,]#{location}[,]|[,]#{location}$")
-
-            units.each do |unit|
-                if unit.fclass == "P"
-                    population_units << [unit, location]
-                else
-                    adm_units << [unit, location]
-                end
-            end
-        end
-
-        # choose settlement with max population or administrative region with minimal population
-        if population_units.empty?
-            unless adm_units.empty?
-                loc_coords = "%.2f,%.2f" % [adm_units.last[0].latitude, adm_units.last[0].longitude]
-                if loc_coords == RU_LOC
-                    return {coords: loc_coords, name: adm_units.last[1], category: "russia"}
-                else
-                    return {coords: loc_coords, name: adm_units.last[1], category: "region"}
-                end
-            end
-        else
-            loc_coords = "%.2f,%.2f" % [population_units.first[0].latitude, population_units.first[0].longitude]
-            return {coords: loc_coords, name: population_units.first[1], category: "population"}
-        end
-
-        # if location isn't defined try to search it in countries database
-        locations.each do |location|
-            countries = Countries.where('name ~* ?', "^#{location}$|^#{location}[,]|[,]#{location}[,]|[,]#{location}$")
-
-            if countries.empty?
-                capitals = Countries.where('capital ~* ?', "^#{location}$|^#{location}[,]|[,]#{location}[,]|[,]#{location}$")
-
-                unless capitals.empty?
-                    coords = "%.2f,%.2f" % [capitals[0].latitude, capitals[0].longitude]
-                    return {coords: coords, name: capitals[0].capital, category: "global"}
-                end
-
-            else
-                coords = '%.2f,%.2f' % [countries[0].latitude, countries[0].longitude]
-                return {coords: coords, name: countries[0].name, category: "global"}
-            end
-        end
-
-        {coords: nil, name: nil, category: nil}
     end
 
     def parse_sentences(text)
