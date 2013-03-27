@@ -11,7 +11,7 @@ class FeedEntry < ActiveRecord::Base
         add_entries(feed.entries)
 
         # save feeds in database for future updating
-        if Feeds.where("feed_url = ?", feed_url).empty?
+        if Feeds.where('feed_url = ?', feed_url).empty?
             puts "[FEED] add feed #{feed_url} to database"
             Feeds.create!(
                 :title          => feed.title,
@@ -28,7 +28,7 @@ class FeedEntry < ActiveRecord::Base
         add_entries(feed.entries)
 
         # save feeds in database for future updating
-        if Feeds.where("feed_url = ?", feed_url).empty?
+        if Feeds.where('feed_url = ?', feed_url).empty?
             puts "[FEED] add feed #{feed_url} to database"
             Feeds.create!(
                 :title          => feed.title,
@@ -136,6 +136,20 @@ class FeedEntry < ActiveRecord::Base
         locations.each do |location, score|
             tags << location.name
 
+            if location.category == 'predicted'
+                if location.geonameid.start_with?('g')
+                    unit = Geonames.where("geonameid = '#{location.geonameid[1..-1]}'").first
+                    locations_str += COORDS_FMT % [unit.latitude, unit.longitude] + ';'
+                else
+                    unit = Countries.find(location.geonameid[1..-1])
+                    locations_str += COORDS_FMT % [unit.latitude, unit.longitude] + ';'
+                end
+
+                categories << 'predicted'
+
+                next
+            end
+
             # create a list of toponyms coordinates for future displaying on map
             if location.category == GLOBAL
                 categories << GLOBAL
@@ -155,7 +169,9 @@ class FeedEntry < ActiveRecord::Base
         end
 
         if locations.present?
-            if categories.include?(GLOBAL)
+            if categories.include?('predicted')
+                entry.update_attributes({:category => 'predicted'})
+            elsif categories.include?(GLOBAL)
                 entry.update_attributes({:category => GLOBAL})
             elsif categories.include?(REGIONAL)
                 entry.update_attributes({:category => REGIONAL})

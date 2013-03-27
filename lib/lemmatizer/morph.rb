@@ -13,8 +13,8 @@ class Morph
         @endings = Containers::Trie.new
         @gramtab = {}
 
-        @productive_classes = %w('NOUN' 'С' 'Г' 'ИНФИНИТИВ' 'VERB' 'ADJECTIVE' 'П' 'Н' 'КР_ПРИЛ')
-        @context_classes = %w('NOUN' 'С' 'ADJECTIVE' 'П' 'КР_ПРИЛ')
+        @productive_classes = ['NOUN', 'С', 'Г', 'ИНФИНИТИВ', 'VERB', 'ADJECTIVE', 'П', 'Н', 'КР_ПРИЛ']
+        @context_classes = ['NOUN', 'С', 'ADJECTIVE', 'П', 'КР_ПРИЛ']
     end
 
     def load_dictionary(dict_file, gram_file)
@@ -368,6 +368,10 @@ class Morph
     def remove_stop_words(words)
         context_words = []
         words.each do |word|
+            if word[:is_location]
+                next
+            end
+
             rules = @rules[word[:rule].to_i]
 
             rules.each do |rule|

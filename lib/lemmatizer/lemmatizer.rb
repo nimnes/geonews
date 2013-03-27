@@ -1,5 +1,5 @@
 # encoding: utf-8
-require "./lib/lemmatizer/morph"
+require './lib/lemmatizer/morph'
 
 class Lemmatizer
     Entity = Struct.new(:locations, :persons, :time)
@@ -37,8 +37,6 @@ class Lemmatizer
     def define_location(text, entry_id = nil)
         sentences = parse_sentences(text)
         entities = []
-        learning_items = []
-        predicted_locations = []
 
         # parse sentences of feeds entry, result is table
         # | SENTENCE  |   LOCATION   |   PERSON   |   TIME   |
@@ -86,19 +84,20 @@ class Lemmatizer
                 # check for areas or regions
                 @administative_units.each do |adm_unit|
                     if w[:normal_form] == adm_unit[0] and prev_word.present?
-
-                        # delete adjective locations if there is area keyword after it
-                        0.upto(adjective_locations).each do |adj|
-                            locations.pop
-                        end
-
                         t_word = @morph.transform_word(prev_word[:lemma], prev_word[:rule], adm_unit[1])
 
                         unless t_word.blank?
+                            # delete adjective locations if there is area keyword after it
+                            0.upto(adjective_locations).each do |adj|
+                                locations.pop
+                            end
+
                             self.possible_locations(t_word + ' ' + w[:normal_form]).each do |pl|
                                 locations << pl
                             end
                         end
+
+                        break
                     end
                 end
 
@@ -116,14 +115,6 @@ class Lemmatizer
                 prev_word = w
             end
 
-            # view similar sentences in LearningCorpus
-            # it can help for future prediction of location
-            #similar_entries = LearningCorpus.get_similar_entries(@morph.remove_stop_words(normal_sentence))
-            #
-            #unless similar_entries.empty?
-            #    predicted_locations << similar_entries.first
-            #end
-
             entity.locations = locations
             entity.persons = persons
             entity.time = nil
@@ -131,11 +122,51 @@ class Lemmatizer
             entities << entity
         end
 
-        unless LearningCorpus.has_entry?(entry_id)
+        best_locations = self.define_locations_weights(entities)
 
+        if best_locations.present?
+            # add resolved entries to LearningCorpus
+            if entry_id.present? and not LearningCorpus.has_entry?(entry_id)
+                referents = ''
+
+                best_locations.each do |location, score|
+                    # use prefix because of two DBs: Countries (World) and Geonames (Russia)
+                    if location.category == GLOBAL
+                        referents += 'c' + location.geonameid.to_s + ';'
+                    else
+                        referents += 'g' + location.geonameid.to_s + ';'
+                    end
+                end
+
+                unless referents.blank?
+                    referents = referents[0...-1]
+
+                    context = @morph.remove_stop_words(@morph.normalize_words(parse_words(text)))
+                    LearningCorpus.add_entry(context, best_locations.first[0].name, referents, entry_id)
+                end
+            end
+
+            return best_locations
+        else
+            # try to find similar entries in Learning corpus
+            if LearningCorpus.consistent?
+                context = @morph.remove_stop_words(@morph.normalize_words(parse_words(text)))
+                similar_entries = LearningCorpus.get_similar_entries(context)
+
+                if similar_entries.present?
+                    best = similar_entries.first
+
+                    loc = Location.new
+                    loc.geonameid = best[0].referents.split(';').first
+                    loc.name = best[0].toponym
+                    loc.category = 'predicted'
+
+                    best_locations << [loc, best[1]]
+                end
+            end
         end
 
-        best_locations = self.define_locations_weights(entities)
+        best_locations
 
         #unless learning_items.empty?
         #    referents = ''
@@ -182,30 +213,11 @@ class Lemmatizer
         #end
     end
 
-    def get_left_context(sentense, index)
-        if index == 0
-            return []
-        end
-
-        left_context = @morph.remove_stop_words(sentense[0...index])
-        if left_context.count <= CONTEXT_SIZE
-            left_context
+    def get_location_name(location_id)
+        if location_id.start_with?('g')
+            Geonames.where('geonameid = ?', location_id[1..-1]).first.name
         else
-            left_context[left_context.count - CONTEXT_SIZE...left_context.count]
-        end
-
-    end
-
-    def get_right_context(sentense, index)
-        if index == sentense.count
-            return []
-        end
-
-        right_context = @morph.remove_stop_words(sentense[index + 1...sentense.count])
-        if right_context.count <= CONTEXT_SIZE
-            right_context
-        else
-            right_context[0...CONTEXT_SIZE]
+            Countries.find(location_id[1..-1]).name
         end
     end
 
@@ -390,11 +402,11 @@ class Lemmatizer
         end
 
         ## replace geo reductions with full name in first form
-        #@geo_reductions.each do |key, value|
-        #    text = text.gsub(key, value)
-        #end
+        @geo_reductions.each do |key, value|
+            text = text.gsub(key, value)
+        end
 
-        text.split(/(?![а-яА-Я])(?<=\.|\!|\?)(?!\")\s+(?=\"?[А-Я])/)
+        text.split(/(?![а-яА-Я])(?<=\.|!|\?)(?!")\s+(?="?[А-Я])/)
     end
 
     def parse_words(sentence)
