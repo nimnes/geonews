@@ -15,6 +15,14 @@ class Morph
 
         @productive_classes = ['NOUN', 'С', 'Г', 'ИНФИНИТИВ', 'VERB', 'ADJECTIVE', 'П', 'Н', 'КР_ПРИЛ']
         @context_classes = ['NOUN', 'С', 'ADJECTIVE', 'П', 'КР_ПРИЛ']
+
+        # for transform_word function
+        @kinds = {
+            'МР' => ['йа', 'аа', 'Юо', 'го'],
+            'ЖР' => ['йж', 'га', 'Йа', 'Йм'],
+            'СР' => ['йм', 'еа', 'Яз'],
+            'МН' => ['йт']
+        }
     end
 
     def load_dictionary(dict_file, gram_file)
@@ -191,11 +199,14 @@ class Morph
                     if is_location
                         suffixes = @rules[annotation[0].to_i]
 
-                        suffixes.each do |suffix|
+                        suffixes.each_with_index do |suffix, index|
                             if UnicodeUtils.upcase(word_str) + suffix[0] == UnicodeUtils.upcase(word)
                                 return [ UnicodeUtils.upcase(word_str) + suffixes[0][0],
                                          UnicodeUtils.upcase(word_str),
-                                         annotation[0].to_i, gram_info, is_location ]
+                                         annotation[0].to_i,
+                                         index,
+                                         gram_info,
+                                         is_location ]
                             end
                         end
                     end
@@ -206,12 +217,15 @@ class Morph
                 annotations.sort_by{|k|k[0].to_i}.each do |annotation|
                     suffixes = @rules[annotation[0].to_i]
 
-                    suffixes.each do |suffix|
+                    suffixes.each_with_index do |suffix, index|
                         if UnicodeUtils.upcase(word_str) + suffix[0] == UnicodeUtils.upcase(word)
                             gram_info = @gramtab[annotation[2]]
                             return [ UnicodeUtils.upcase(word_str) + suffixes[0][0],
                                      UnicodeUtils.upcase(word_str),
-                                     annotation[0].to_i, gram_info, false ]
+                                     annotation[0].to_i,
+                                     index,
+                                     gram_info,
+                                     false ]
                         end
                     end
                 end
@@ -224,7 +238,7 @@ class Morph
         annotations.each do |annotation|
             suffixes = @rules[annotation[0].to_i]
 
-            suffixes.each do |suffix|
+            suffixes.each_with_index do |suffix, index|
                 if suffix[0] == UnicodeUtils.upcase(word)
                     gram_info = @gramtab[annotation[2]]
                     if gram_info.nil? or gram_info[1].nil?
@@ -232,7 +246,7 @@ class Morph
                     else
                         is_location = (gram_info[1].include?('лок') and not is_quotes)
                     end
-                    return [suffixes[0][0], '#', annotation[0].to_i, gram_info, is_location]
+                    return [suffixes[0][0], '#', annotation[0].to_i, index, gram_info, is_location]
                 end
             end
         end
@@ -248,17 +262,19 @@ class Morph
 
                 max_frequency = 0
                 best_rule = 0
+                best_rule_part = 0
 
                 # search for most popular rule
                 possible_rules.each do |rule_id|
                     if @rule_frequencies[rule_id] > max_frequency
 
-                        @rules[rule_id].each do |prule|
+                        @rules[rule_id].each_with_index do |prule, index|
                             # predict only productive classes (noun, verb, adjective, adverb)
                             #puts prule[1]
                             if prule[0] == UnicodeUtils.upcase(word_suffix) and @productive_classes.include?(@gramtab[prule[1]][0])
                                 max_frequency = @rule_frequencies[rule_id]
                                 best_rule = rule_id
+                                best_rule_part = index
                                 break
                             end
                         end
@@ -274,7 +290,12 @@ class Morph
                 end
 
                 if max_frequency > 0
-                    return [UnicodeUtils.upcase(predicted_word), word[0..-(i + 1)], best_rule, gram_info, is_location]
+                    return [ UnicodeUtils.upcase(predicted_word),
+                             word[0..-(i + 1)],
+                             best_rule,
+                             best_rule_part,
+                             gram_info,
+                             is_location ]
                 end
             end
         end
@@ -290,8 +311,9 @@ class Morph
                   normal_form: normal_form[0],
                   lemma: normal_form[1],
                   rule: normal_form[2],
-                  annotation: normal_form[3],
-                  is_location: normal_form[4]
+                  rule_part: normal_form[3],
+                  annotation: normal_form[4],
+                  is_location: normal_form[5]
             }
         end
 
@@ -308,8 +330,9 @@ class Morph
                       normal_form: normal_form[0],
                       lemma: normal_form[1],
                       rule: normal_form[2],
-                      annotation: normal_form[3],
-                      is_location: normal_form[4]
+                      rule_part: normal_form[3],
+                      annotation: normal_form[4],
+                      is_location: normal_form[5]
                     }
                 normal_words << h
             end
@@ -318,17 +341,19 @@ class Morph
         normal_words
     end
 
-    # transform word in neccessary form
+    # transform word to neccessary form
     def transform_word(lemma, rule_id, annotation)
         if rule_id.nil?
-            return ""
+            return ''
         end
+
         @rules[rule_id.to_i].each do |r|
-            if r[1] == annotation
+            if @kinds[annotation].include?(r[1])
                 return lemma + r[0]
             end
         end
-        ""
+
+        ''
     end
 
     def is_surname?(word)
@@ -372,17 +397,16 @@ class Morph
                 next
             end
 
-            rules = @rules[word[:rule].to_i]
-
-            rules.each do |rule|
-                if word[:lemma] + rule[0] == UnicodeUtils.upcase(word[:word])
-                    if @context_classes.include?(@gramtab[rule[1]][0])
-                        context_words << word[:normal_form]
-                        break
-                    end
-                end
+            rule = @rules[word[:rule].to_i][word[:rule_part]]
+            if @context_classes.include?(@gramtab[rule[1]][0])
+                context_words << word[:normal_form]
             end
         end
         context_words
+    end
+
+    def get_word_class(word)
+        rule = @rules[word[:rule].to_i][word[:rule_part]]
+        @gramtab[rule[1]][0]
     end
 end

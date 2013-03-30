@@ -3,7 +3,7 @@ class LearningCorpus < ActiveRecord::Base
 
     CORPUS_SIZE = 2000
     MIN_CORPUS_SIZE = 500
-    MIN_SIMILARITY = 0.65
+    MIN_SIMILARITY = 0.55
 
     def self.add_entry(context, toponym, referents, entry_id)
         context_str = ''

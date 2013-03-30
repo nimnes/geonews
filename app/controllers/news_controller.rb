@@ -2,18 +2,16 @@ class NewsController < ApplicationController
     def index
         @total = FeedEntry.all.count
         if params[:category].nil?
-            @news = FeedEntry.where("category IS NULL").paginate(page: params[:page], per_page: 50)
+            @news = FeedEntry.where("source IS NULL").paginate(page: params[:page], per_page: 50)
         else
-            if params[:category] == "global"
-                @news = FeedEntry.where("category = 'global'").paginate(page: params[:page], per_page: 50)
-            end
-
-            if params[:category] == "local"
-                @news = FeedEntry.where("category != 'global'").paginate(page: params[:page], per_page: 50)
-            end
-
-            if params[:category] == "predicted"
-                @news = FeedEntry.where("category = 'predicted'").paginate(page: params[:page], per_page: 50)
+            if params[:category] == GLOBAL
+                @news = FeedEntry.where("source like '%countries%'").paginate(page: params[:page], per_page: 50)
+            elsif params[:category] == "predicted"
+                @news = FeedEntry.where("source like '%learning%'").paginate(page: params[:page], per_page: 50)
+            elsif params[:category] == "user"
+                @news = FeedEntry.where("source like '%user_rules%'").paginate(page: params[:page], per_page: 50)
+            else
+                @news = FeedEntry.where("source like '%geonames%'").paginate(page: params[:page], per_page: 50)
             end
         end
     end

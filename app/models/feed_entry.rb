@@ -1,5 +1,5 @@
 class FeedEntry < ActiveRecord::Base
-    attr_accessible :guid, :name, :published_at, :summary, :url, :location, :tags, :category
+    attr_accessible :guid, :name, :published_at, :summary, :url, :location, :tags, :category, :source
     COMMA = ', '
 
     def self.set_lemmatizer(lem)
@@ -126,6 +126,7 @@ class FeedEntry < ActiveRecord::Base
 
     def self.update_location(entry, locations)
         locations_str = ''
+        sources_str = ''
         tags = []
         categories = []
 
@@ -136,19 +137,20 @@ class FeedEntry < ActiveRecord::Base
         locations.each do |location, score|
             tags << location.name
 
-            if location.category == 'predicted'
-                if location.geonameid.start_with?('g')
-                    unit = Geonames.where("geonameid = '#{location.geonameid[1..-1]}'").first
-                    locations_str += COORDS_FMT % [unit.latitude, unit.longitude] + ';'
-                else
-                    unit = Countries.find(location.geonameid[1..-1])
-                    locations_str += COORDS_FMT % [unit.latitude, unit.longitude] + ';'
-                end
-
-                categories << 'predicted'
-
-                next
-            end
+            sources_str += location.source + ';'
+            #if location.source == LEARNING
+            #    if location.geonameid.start_with?('g')
+            #        unit = Geonames.where("geonameid = '#{location.geonameid[1..-1]}'").first
+            #        locations_str += COORDS_FMT % [unit.latitude, unit.longitude] + ';'
+            #    else
+            #        unit = Countries.find(location.geonameid[1..-1])
+            #        locations_str += COORDS_FMT % [unit.latitude, unit.longitude] + ';'
+            #    end
+            #
+            #    categories << 'predicted'
+            #
+            #    next
+            #end
 
             # create a list of toponyms coordinates for future displaying on map
             if location.category == GLOBAL
@@ -180,7 +182,9 @@ class FeedEntry < ActiveRecord::Base
             end
 
             locations_str = locations_str[0...-1]
+            sources_str = sources_str[0...-1]
             entry.update_attributes({:location => locations_str})
+            entry.update_attributes({:source => sources_str})
         else
             entry.update_attributes({:location => nil})
             entry.update_attributes({:category => nil})

@@ -3,7 +3,8 @@
     <ul class="nav nav-pills">
       <li class="<%= 'active' if params[:category] == "local" %>"><a href="/news?category=local">Российские новости</a></li>
       <li class="<%= 'active' if params[:category] == "global" %>"><a href="/news?category=global">Мировые новости</a></li>
-      <li class="<%= 'active' if params[:category] == "predicted" %>"><a href="/news?category=predicted">Ванга</a></li>
+      <li class="<%= 'active' if params[:category] == "predicted" %>"><a href="/news?category=predicted">Обучение</a></li>
+      <li class="<%= 'active' if params[:category] == "user" %>"><a href="/news?category=user">Пользовательские правила</a></li>
       <li class="<%= 'active' if params[:category].nil? %>"><a href="/news">Новости без позиции</a></li>
     </ul>
   </div>

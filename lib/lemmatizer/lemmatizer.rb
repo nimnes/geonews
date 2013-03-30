@@ -3,7 +3,7 @@ require './lib/lemmatizer/morph'
 
 class Lemmatizer
     Entity = Struct.new(:locations, :persons, :time)
-    Location = Struct.new(:geonameid, :name, :fclass, :acode, :category)
+    Location = Struct.new(:geonameid, :name, :fclass, :acode, :category, :source)
     Person = Struct.new(:name, :surname, :middlename)
     Context = Struct.new(:toponym, :left, :right)
 
@@ -24,10 +24,11 @@ class Lemmatizer
 
         @morph = Morph.new()
         @morph.load_dictionary('./dicts/morphs.mrd', './dicts/rgramtab.tab')
-        @administative_units = [ %w(ОБЛАСТЬ йж), %w(КРАЙ йа), %w(РАЙОН йа),
-                                 %w(МОРЕ йм), %w(ОКРУГ йа), %w(ОЗЕРО йм),
-                                 %w(УЛИЦА йж), %w(БУЛЬВАР йа), %w(ПРОСПЕКТ йа),
-                                 %w(ОСТРОВА й)]
+        @administative_units = [ %w(ОБЛАСТЬ ЖР), %w(КРАЙ МР), %w(РАЙОН МР),
+                                 %w(МОРЕ СР), %w(ОКРУГ МР), %w(ОЗЕРО СР),
+                                 %w(УЛИЦА ЖР), %w(БУЛЬВАР МР), %w(ПРОСПЕКТ МР),
+                                 %w(ОСТРОВА МН)]
+        @rule_classes = ['NOUN', 'С', 'ADJECTIVE', 'П', 'КР_ПРИЛ']
     end
 
     def inspect
@@ -110,6 +111,17 @@ class Lemmatizer
                             locations << pl
                         end
                     end
+                else
+                    if @rule_classes.include?(@morph.get_word_class(w))
+                        # check user rules
+                        user_rule = UserRules.where('rule = ?', w[:normal_form]).first
+                        if user_rule.present?
+                            loc = get_location(user_rule.referent)
+                            loc.name = user_rule.toponym
+                            loc.source = USER_RULES
+                            locations << loc
+                        end
+                    end
                 end
 
                 prev_word = w
@@ -156,10 +168,9 @@ class Lemmatizer
                 if similar_entries.present?
                     best = similar_entries.first
 
-                    loc = Location.new
-                    loc.geonameid = best[0].referents.split(';').first
+                    loc = get_location(best[0].referents.split(';').first)
                     loc.name = best[0].toponym
-                    loc.category = 'predicted'
+                    loc.source = LEARNING
 
                     best_locations << [loc, best[1]]
                 end
@@ -167,58 +178,6 @@ class Lemmatizer
         end
 
         best_locations
-
-        #unless learning_items.empty?
-        #    referents = ''
-        #
-        #    best_locations.each do |loc|
-        #        # use prefix because of two DBs: Countries (World) and Geonames (Russia)
-        #        if loc[0].category == GLOBAL
-        #            referents += 'c' + loc[0].geonameid.to_s + ';'
-        #        else
-        #            referents += 'g' + loc[0].geonameid.to_s + ';'
-        #        end
-        #    end
-        #
-        #    if referents.blank?
-        #        return best_locations
-        #    else
-        #        referents = referents[0...-1]
-        #    end
-        #
-        #    learning_items.each do |litem|
-        #        LearningCorpus.add_toponym(litem, referents, entry_id)
-        #    end
-        #end
-
-        ## if location is undefined, try to find similar entities in learning corpus
-        #if best_locations.empty?
-        #    unless predicted_locations.empty?
-        #        predicted_locations = predicted_locations.sort_by {|x,y| y}[0...3]
-        #
-        #        predicted_locations.each do |pl, score|
-        #            puts 'L: ' + pl.left + ' R: ' + pl.right + ' T: ' + pl.toponym + ' R: ' + pl.referents
-        #            loc = Location.new
-        #            loc.geonameid = pl.referents.split(';').first
-        #            loc.name = pl.toponym
-        #            loc.category = 'predicted'
-        #
-        #            best_locations << [loc, score]
-        #        end
-        #
-        #        return best_locations
-        #    end
-        #else
-        #    best_locations
-        #end
-    end
-
-    def get_location_name(location_id)
-        if location_id.start_with?('g')
-            Geonames.where('geonameid = ?', location_id[1..-1]).first.name
-        else
-            Countries.find(location_id[1..-1]).name
-        end
     end
 
     # returns 3 best locations based on population, number of occurencies in text and other factors
@@ -354,6 +313,7 @@ class Lemmatizer
                 loc.name = location
                 loc.acode = unit.acode
                 loc.fclass = unit.fclass
+                loc.source = GEONAMES_DB
 
                 if unit.fclass == POPULATION_CLASS
                     loc.category = POPULATION
@@ -376,6 +336,7 @@ class Lemmatizer
                     loc.name = location
                     loc.geonameid = capital.id
                     loc.category = GLOBAL
+                    loc.source = COUNTRIES_DB
                     locations << loc
                 end
             end
@@ -385,11 +346,45 @@ class Lemmatizer
                 loc.name = location
                 loc.geonameid = country.id
                 loc.category = GLOBAL
+                loc.source = COUNTRIES_DB
                 locations << loc
             end
         end
 
         locations
+    end
+
+    def get_location_name(location_id)
+        if location_id.start_with?('g')
+            Geonames.where('geonameid = ?', location_id[1..-1]).first.name
+        else
+            Countries.find(location_id[1..-1]).name
+        end
+    end
+
+    def get_location(location_id)
+        loc = Location.new
+        loc.geonameid = location_id[1..-1]
+
+        if location_id.start_with?('g')
+            unit = Geonames.where('geonameid = ?', loc.geonameid).first
+
+            if unit.fclass == POPULATION_CLASS
+                loc.category = POPULATION
+            elsif unit.geonameid == RUSSIA_ID
+                loc.category = RUSSIA
+            else
+                loc.category = REGIONAL
+            end
+
+            loc.fclass = unit.fclass
+            loc.acode = unit.acode
+        else
+            loc.category = GLOBAL
+            Countries.find(loc.geonameid)
+        end
+
+        loc
     end
 
     def parse_sentences(text)
