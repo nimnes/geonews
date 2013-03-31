@@ -5,6 +5,7 @@
       <li class="<%= 'active' if params[:category] == "global" %>"><a href="/news?category=global">Мировые новости</a></li>
       <li class="<%= 'active' if params[:category] == "predicted" %>"><a href="/news?category=predicted">Обучение</a></li>
       <li class="<%= 'active' if params[:category] == "user" %>"><a href="/news?category=user">Пользовательские правила</a></li>
+      <li class="<%= 'active' if params[:category] == "cities" %>"><a href="/news?category=cities">Города</a></li>
       <li class="<%= 'active' if params[:category].nil? %>"><a href="/news">Новости без позиции</a></li>
     </ul>
   </div>

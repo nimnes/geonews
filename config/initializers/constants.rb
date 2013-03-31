@@ -15,5 +15,6 @@ CONTEXT_SIZE = 4
 # location source types
 GEONAMES_DB = 'geonames'
 COUNTRIES_DB = 'countries'
+WORLD_CITIES_DB = 'world_cities'
 LEARNING = 'learning'
 USER_RULES = 'user_rules'

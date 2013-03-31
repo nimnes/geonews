@@ -115,7 +115,8 @@ class FeedEntry < ActiveRecord::Base
                     :guid         => entry.id,
                     :location     => nil,
                     :tags         => nil,
-                    :category     => nil
+                    :category     => nil,
+                    :source       => nil
                     )
 
                 self.update_location(item, entry_locations)
@@ -138,25 +139,17 @@ class FeedEntry < ActiveRecord::Base
             tags << location.name
 
             sources_str += location.source + ';'
-            #if location.source == LEARNING
-            #    if location.geonameid.start_with?('g')
-            #        unit = Geonames.where("geonameid = '#{location.geonameid[1..-1]}'").first
-            #        locations_str += COORDS_FMT % [unit.latitude, unit.longitude] + ';'
-            #    else
-            #        unit = Countries.find(location.geonameid[1..-1])
-            #        locations_str += COORDS_FMT % [unit.latitude, unit.longitude] + ';'
-            #    end
-            #
-            #    categories << 'predicted'
-            #
-            #    next
-            #end
 
             # create a list of toponyms coordinates for future displaying on map
             if location.category == GLOBAL
                 categories << GLOBAL
 
-                unit = Countries.find(location.geonameid)
+                if location.source == COUNTRIES_DB
+                    unit = Countries.find(location.geonameid)
+                else
+                    unit = WorldCities.where("geonameid = '#{location.geonameid}'").first
+                end
+
                 locations_str += COORDS_FMT % [unit.latitude, unit.longitude] + ';'
             else
                 if location.category == POPULATION
@@ -165,7 +158,7 @@ class FeedEntry < ActiveRecord::Base
                     categories << REGIONAL
                 end
 
-                unit = Geonames.where("geonameid = '#{location.geonameid}'").first
+                unit = Geonames2.where("geonameid = '#{location.geonameid}'").first
                 locations_str += COORDS_FMT % [unit.latitude, unit.longitude] + ';'
             end
         end
@@ -183,12 +176,14 @@ class FeedEntry < ActiveRecord::Base
 
             locations_str = locations_str[0...-1]
             sources_str = sources_str[0...-1]
+
             entry.update_attributes({:location => locations_str})
             entry.update_attributes({:source => sources_str})
         else
             entry.update_attributes({:location => nil})
             entry.update_attributes({:category => nil})
             entry.update_attributes({:tags => nil})
+            entry.update_attributes({:source => nil})
         end
 
         tags_str = ''

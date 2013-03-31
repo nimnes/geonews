@@ -56,8 +56,13 @@ class Lemmatizer
             locations = []
             persons = []
 
-            prev_word = {}
+            skip_iterations = 0
+
             normal_sentence.each_with_index do |w, index|
+                if skip_iterations > 0
+                    next
+                end
+
                 person  = Person.new
 
                 if @morph.is_surname?(w)
@@ -82,23 +87,32 @@ class Lemmatizer
                     end
                 end
 
-                # check for areas or regions
-                @administative_units.each do |adm_unit|
-                    if w[:normal_form] == adm_unit[0] and prev_word.present?
-                        t_word = @morph.transform_word(prev_word[:lemma], prev_word[:rule], adm_unit[1])
+                next_word = normal_sentence[index + 1]
 
-                        unless t_word.blank?
-                            # delete adjective locations if there is area keyword after it
-                            0.upto(adjective_locations).each do |adj|
-                                locations.pop
+                if next_word.present? and @rule_classes.include?(@morph.get_word_class(w))
+                    # check for areas or regions
+                    @administative_units.each do |adm_unit|
+                        if next_word[:normal_form] == adm_unit[0]
+                            t_word = @morph.transform_word(w[:lemma], w[:rule], adm_unit[1])
+
+                            unless t_word.blank?
+                                # delete adjective locations if there is area keyword after it
+                                0.upto(adjective_locations).each do |adj|
+                                    locations.pop
+                                end
+
+                                self.possible_locations(t_word + ' ' + next_word[:normal_form]).each do |pl|
+                                    locations << pl
+                                end
                             end
 
-                            self.possible_locations(t_word + ' ' + w[:normal_form]).each do |pl|
-                                locations << pl
-                            end
+                            skip_iterations += 1
+                            break
                         end
+                    end
 
-                        break
+                    if skip_iterations > 0
+                        next
                     end
                 end
 
@@ -123,8 +137,6 @@ class Lemmatizer
                         end
                     end
                 end
-
-                prev_word = w
             end
 
             entity.locations = locations
@@ -137,44 +149,44 @@ class Lemmatizer
         best_locations = self.define_locations_weights(entities)
 
         if best_locations.present?
-            # add resolved entries to LearningCorpus
-            if entry_id.present? and not LearningCorpus.has_entry?(entry_id)
-                referents = ''
-
-                best_locations.each do |location, score|
-                    # use prefix because of two DBs: Countries (World) and Geonames (Russia)
-                    if location.category == GLOBAL
-                        referents += 'c' + location.geonameid.to_s + ';'
-                    else
-                        referents += 'g' + location.geonameid.to_s + ';'
-                    end
-                end
-
-                unless referents.blank?
-                    referents = referents[0...-1]
-
-                    context = @morph.remove_stop_words(@morph.normalize_words(parse_words(text)))
-                    LearningCorpus.add_entry(context, best_locations.first[0].name, referents, entry_id)
-                end
-            end
+            ## add resolved entries to LearningCorpus
+            #if entry_id.present? and not LearningCorpus.has_entry?(entry_id)
+            #    referents = ''
+            #
+            #    best_locations.each do |location, score|
+            #        # use prefix because of two DBs: Countries (World) and Geonames (Russia)
+            #        if location.category == GLOBAL
+            #            referents += 'c' + location.geonameid.to_s + ';'
+            #        else
+            #            referents += 'g' + location.geonameid.to_s + ';'
+            #        end
+            #    end
+            #
+            #    unless referents.blank?
+            #        referents = referents[0...-1]
+            #
+            #        context = @morph.remove_stop_words(@morph.normalize_words(parse_words(text)))
+            #        LearningCorpus.add_entry(context, best_locations.first[0].name, referents, entry_id)
+            #    end
+            #end
 
             return best_locations
         else
-            # try to find similar entries in Learning corpus
-            if LearningCorpus.consistent?
-                context = @morph.remove_stop_words(@morph.normalize_words(parse_words(text)))
-                similar_entries = LearningCorpus.get_similar_entries(context)
-
-                if similar_entries.present?
-                    best = similar_entries.first
-
-                    loc = get_location(best[0].referents.split(';').first)
-                    loc.name = best[0].toponym
-                    loc.source = LEARNING
-
-                    best_locations << [loc, best[1]]
-                end
-            end
+            ## try to find similar entries in Learning corpus
+            #if LearningCorpus.consistent?
+            #    context = @morph.remove_stop_words(@morph.normalize_words(parse_words(text)))
+            #    similar_entries = LearningCorpus.get_similar_entries(context)
+            #
+            #    if similar_entries.present?
+            #        best = similar_entries.first
+            #
+            #        loc = get_location(best[0].referents.split(';').first)
+            #        loc.name = best[0].toponym
+            #        loc.source = LEARNING
+            #
+            #        best_locations << [loc, best[1]]
+            #    end
+            #end
         end
 
         best_locations
@@ -204,7 +216,7 @@ class Lemmatizer
                         ru_location = location
                     end
 
-                    location_unit = Geonames.where("geonameid = '#{location.geonameid}'").first
+                    location_unit = Geonames2.where("geonameid = '#{location.geonameid}'").first
 
                     if not is_areas and location.fclass != POPULATION_CLASS
                         is_areas = true
@@ -281,10 +293,10 @@ class Lemmatizer
                     end
                 end
             else
-                unit = Geonames.where("geonameid = '#{loc.geonameid}'").first
+                unit = Geonames2.where("geonameid = '#{loc.geonameid}'").first
                 locations.each do |loc2|
                     if loc2.category != GLOBAL and loc.name == loc2.name and loc.geonameid != loc2.geonameid
-                        unit2 = Geonames.where("geonameid = '#{loc2.geonameid}'").first
+                        unit2 = Geonames2.where("geonameid = '#{loc2.geonameid}'").first
                         if unit.population > unit2.population
                             locations_weights.delete(loc2)
                             locations.delete(loc2)
@@ -304,7 +316,8 @@ class Lemmatizer
             return locations
         end
 
-        units = Geonames.where('name ~* ?', "^#{location}$|^#{location}[,]|[,]#{location}[,]|[,]#{location}$")
+        # russian cities and areas
+        units = Geonames2.where('name ~* ?', "^#{location}$|^#{location}[,]|[,]#{location}[,]|[,]#{location}$")
 
         unless units.empty?
             units.each do |unit|
@@ -326,19 +339,18 @@ class Lemmatizer
             end
         end
 
+        # other countries and their capitals
         countries = Countries.where('name ~* ?', "^#{location}$|^#{location}[,]|[,]#{location}[,]|[,]#{location}$")
         if countries.empty?
             capitals = Countries.where('capital ~* ?', "^#{location}$|^#{location}[,]|[,]#{location}[,]|[,]#{location}$")
 
-            unless capitals.empty?
-                capitals.each do |capital|
-                    loc = Location.new
-                    loc.name = location
-                    loc.geonameid = capital.id
-                    loc.category = GLOBAL
-                    loc.source = COUNTRIES_DB
-                    locations << loc
-                end
+            capitals.each do |capital|
+                loc = Location.new
+                loc.name = location
+                loc.geonameid = capital.id
+                loc.category = GLOBAL
+                loc.source = COUNTRIES_DB
+                locations << loc
             end
         else
             countries.each do |country|
@@ -351,12 +363,26 @@ class Lemmatizer
             end
         end
 
+        if locations.empty?
+            # not russian big cities
+            cities = WorldCities.where('name ~* ?', "^#{location}$|^#{location}[,]|[,]#{location}[,]|[,]#{location}$")
+
+            cities.each do |city|
+                loc = Location.new
+                loc.name = location
+                loc.geonameid = city.geonameid
+                loc.category = GLOBAL
+                loc.source = WORLD_CITIES_DB
+                locations << loc
+            end
+        end
+
         locations
     end
 
     def get_location_name(location_id)
         if location_id.start_with?('g')
-            Geonames.where('geonameid = ?', location_id[1..-1]).first.name
+            Geonames2.where('geonameid = ?', location_id[1..-1]).first.name
         else
             Countries.find(location_id[1..-1]).name
         end
@@ -367,7 +393,7 @@ class Lemmatizer
         loc.geonameid = location_id[1..-1]
 
         if location_id.start_with?('g')
-            unit = Geonames.where('geonameid = ?', loc.geonameid).first
+            unit = Geonames2.where('geonameid = ?', loc.geonameid).first
 
             if unit.fclass == POPULATION_CLASS
                 loc.category = POPULATION
@@ -406,7 +432,7 @@ class Lemmatizer
 
     def parse_words(sentence)
         # remove punctuation
-        sentence = sentence.gsub(/[\(\)\.\?!:;,`~—]/, '')
+        sentence = sentence.gsub(/[\(\)\.\?!:;,`~]/, '')
         sentence.split(/\s+/)
     end
 

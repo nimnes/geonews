@@ -1,9 +1,9 @@
 # encoding: utf-8
 require "csv"
 
-writer = CSV.open('../../dicts/geonames_parsed.csv', 'wb', options={:col_sep => ';'})
+writer = CSV.open('../../dicts/cities15000_parsed.csv', 'wb', options={:col_sep => ';'})
 
-CSV.foreach('../../dicts/geonames.csv', options={:col_sep => ';'}) do |row|
+CSV.foreach('../../dicts/cities15000.csv', options={:col_sep => "\t"}) do |row|
     ru_names = ""
     unless row[3].nil?
         alt_names = row[3].split(',')
@@ -20,6 +20,6 @@ CSV.foreach('../../dicts/geonames.csv', options={:col_sep => ';'}) do |row|
     end
 
     if ru_names != ""
-        writer << [row[0],ru_names, row[4], row[5], row[6], row[10], row[14]]
+        writer << [row[0], ru_names, row[4], row[5], row[14]]
     end
 end

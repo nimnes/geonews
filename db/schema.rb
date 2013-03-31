@@ -11,7 +11,7 @@
 #
 # It's strongly recommended to check this file into your version control system.
 
-ActiveRecord::Schema.define(:version => 20130330094907) do
+ActiveRecord::Schema.define(:version => 20130331121720) do
 
   create_table "countries", :force => true do |t|
     t.string   "code"
@@ -59,6 +59,18 @@ ActiveRecord::Schema.define(:version => 20130330094907) do
     t.datetime "updated_at", :null => false
   end
 
+  create_table "geonames2s", :force => true do |t|
+    t.string   "geonameid"
+    t.text     "name"
+    t.float    "latitude"
+    t.float    "longitude"
+    t.string   "fclass"
+    t.string   "acode"
+    t.integer  "population"
+    t.datetime "created_at", :null => false
+    t.datetime "updated_at", :null => false
+  end
+
   create_table "learning_corpus", :force => true do |t|
     t.string   "toponym"
     t.text     "context"
@@ -72,6 +84,16 @@ ActiveRecord::Schema.define(:version => 20130330094907) do
     t.string   "rule"
     t.string   "toponym"
     t.string   "referent"
+    t.datetime "created_at", :null => false
+    t.datetime "updated_at", :null => false
+  end
+
+  create_table "world_cities", :force => true do |t|
+    t.string   "geonameid"
+    t.text     "name"
+    t.float    "latitude"
+    t.float    "longitude"
+    t.integer  "population"
     t.datetime "created_at", :null => false
     t.datetime "updated_at", :null => false
   end

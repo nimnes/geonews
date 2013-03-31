@@ -10,6 +10,8 @@ class NewsController < ApplicationController
                 @news = FeedEntry.where("source like '%learning%'").paginate(page: params[:page], per_page: 50)
             elsif params[:category] == "user"
                 @news = FeedEntry.where("source like '%user_rules%'").paginate(page: params[:page], per_page: 50)
+            elsif params[:category] == "cities"
+                @news = FeedEntry.where("source like '%world_cities%'").paginate(page: params[:page], per_page: 50)
             else
                 @news = FeedEntry.where("source like '%geonames%'").paginate(page: params[:page], per_page: 50)
             end
