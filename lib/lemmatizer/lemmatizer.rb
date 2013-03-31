@@ -282,14 +282,15 @@ class Lemmatizer
             end
         end
 
+        deleted = []
+
         # if there are populations with same names
         # save only one with max population
         locations.each do |loc|
             if loc.category == GLOBAL
                 locations.each do |loc2|
                     if loc2.category == GLOBAL and loc.name == loc2.name and loc.geonameid != loc2.geonameid
-                        locations_weights.delete(loc2)
-                        locations.delete(loc2)
+                        deleted << loc2
                     end
                 end
             else
@@ -297,13 +298,17 @@ class Lemmatizer
                 locations.each do |loc2|
                     if loc2.category != GLOBAL and loc.name == loc2.name and loc.geonameid != loc2.geonameid
                         unit2 = Geonames2.where("geonameid = '#{loc2.geonameid}'").first
-                        if unit.population > unit2.population
-                            locations_weights.delete(loc2)
-                            locations.delete(loc2)
+                        if unit.population >= unit2.population
+                            deleted << loc2
                         end
                     end
                 end
             end
+        end
+
+        deleted.each do |d|
+            locations.delete(d)
+            locations_weights.delete(d)
         end
 
         locations_weights.sort_by {|k,v| v}.reverse[0...3]
