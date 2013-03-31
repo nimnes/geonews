@@ -27,3 +27,6 @@ rake feed:update
 ```
 
 for grabbing and toponym recognition for them
+
+All news are stored in FeedEntry database, which store general information from RSS (i.e. title, summary) and 
+locations coordinates. Locations names are stored in tags field. Then it is used for displaying news on map.
