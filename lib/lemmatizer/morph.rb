@@ -385,7 +385,7 @@ class Morph
     end
 
     def get_lemma(lemma)
-        puts @lemmas.get(lemma)
+        @lemmas.get(lemma)
     end
 
     # leave only nouns and adjectives
