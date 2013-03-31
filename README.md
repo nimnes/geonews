@@ -10,14 +10,23 @@ and place a message on a map.
 Thanks to AOT project (http://aot.ru) for dictionary of lemmas and
 https://github.com/kanwei/algorithms for implementation of Trie structure on Ruby.
 
-## Dependencies
+## How to use
 
-GeoNews uses the following gems:
+At first you must create databases and import data from csv files
+
 ```ruby
-gem 'bootstrap-sass'
-gem 'bootstrap-will_paginate'
-gem 'feedzirra'
-gem 'will_paginate'
-gem 'algorithms'
-gem 'unicode_utils'
+rake db:migrate
+rake csv:import
 ```
+
+RSS feeds are stored in dicts/rssfeeds file, you can use
+
+```ruby
+rake feed:readfeeds
+rake feed:update
+```
+
+for grabbing and toponym recognition for them
+
+All news are stored in FeedEntry database, which store general information from RSS (i.e. title, summary) and 
+locations coordinates. Locations names are stored in tags field. Then it is used for displaying news on map.
