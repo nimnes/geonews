@@ -141,14 +141,14 @@ class FeedEntry < ActiveRecord::Base
             sources_str += location.source + ';'
 
             # create a list of toponyms coordinates for future displaying on map
-            if location.category == GLOBAL
-                categories << GLOBAL
+            if location.category == COUNTRY
+                categories << COUNTRY
+                unit = Countries.find(location.geonameid)
 
-                if location.source == COUNTRIES_DB
-                    unit = Countries.find(location.geonameid)
-                else
-                    unit = WorldCities.where("geonameid = '#{location.geonameid}'").first
-                end
+                locations_str += COORDS_FMT % [unit.latitude, unit.longitude] + ';'
+            elsif location.category == WORLD_POPULATION
+                categories << WORLD_POPULATION
+                unit = WorldCities.where("geonameid = '#{location.geonameid}'").first
 
                 locations_str += COORDS_FMT % [unit.latitude, unit.longitude] + ';'
             else
@@ -164,10 +164,10 @@ class FeedEntry < ActiveRecord::Base
         end
 
         if locations.present?
-            if categories.include?('predicted')
-                entry.update_attributes({:category => 'predicted'})
-            elsif categories.include?(GLOBAL)
-                entry.update_attributes({:category => GLOBAL})
+            if categories.include?(COUNTRY)
+                entry.update_attributes({:category => COUNTRY})
+            elsif categories.include?(REGIONAL)
+                entry.update_attributes({:category => WORLD_POPULATION})
             elsif categories.include?(REGIONAL)
                 entry.update_attributes({:category => REGIONAL})
             else

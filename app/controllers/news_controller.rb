@@ -4,7 +4,7 @@ class NewsController < ApplicationController
         if params[:category].nil?
             @news = FeedEntry.where("source IS NULL").paginate(page: params[:page], per_page: 50)
         else
-            if params[:category] == GLOBAL
+            if params[:category] == 'global'
                 @news = FeedEntry.where("source like '%countries%'").paginate(page: params[:page], per_page: 50)
             elsif params[:category] == "predicted"
                 @news = FeedEntry.where("source like '%learning%'").paginate(page: params[:page], per_page: 50)

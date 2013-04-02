@@ -2,8 +2,9 @@ RUSSIA_ID = '2017370'
 
 # news location categories
 POPULATION = 'population'
+WORLD_POPULATION = 'world_population'
 RUSSIA = 'russia'
-GLOBAL = 'global'
+COUNTRY = 'country'
 REGIONAL = 'region'
 
 COORDS_FMT = '%.2f,%.2f'

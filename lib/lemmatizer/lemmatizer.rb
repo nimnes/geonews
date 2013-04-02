@@ -3,7 +3,7 @@ require './lib/lemmatizer/morph'
 
 class Lemmatizer
     Entity = Struct.new(:locations, :persons, :time)
-    Location = Struct.new(:geonameid, :name, :fclass, :acode, :category, :source)
+    Location = Struct.new(:geonameid, :name, :fclass, :acode, :category, :population, :source)
     Person = Struct.new(:name, :surname, :middlename)
     Context = Struct.new(:toponym, :left, :right)
 
@@ -131,7 +131,7 @@ class Lemmatizer
                         user_rule = UserRules.where('rule = ?', w[:normal_form]).first
                         if user_rule.present?
                             loc = get_location(user_rule.referent)
-                            loc.name = user_rule.toponym
+                            loc.name = UnicodeUtils.upcase(user_rule.toponym)
                             loc.source = USER_RULES
                             locations << loc
                         end
@@ -149,44 +149,46 @@ class Lemmatizer
         best_locations = self.define_locations_weights(entities)
 
         if best_locations.present?
-            ## add resolved entries to LearningCorpus
-            #if entry_id.present? and not LearningCorpus.has_entry?(entry_id)
-            #    referents = ''
-            #
-            #    best_locations.each do |location, score|
-            #        # use prefix because of two DBs: Countries (World) and Geonames (Russia)
-            #        if location.category == GLOBAL
-            #            referents += 'c' + location.geonameid.to_s + ';'
-            #        else
-            #            referents += 'g' + location.geonameid.to_s + ';'
-            #        end
-            #    end
-            #
-            #    unless referents.blank?
-            #        referents = referents[0...-1]
-            #
-            #        context = @morph.remove_stop_words(@morph.normalize_words(parse_words(text)))
-            #        LearningCorpus.add_entry(context, best_locations.first[0].name, referents, entry_id)
-            #    end
-            #end
+            # add resolved entries to LearningCorpus
+            if entry_id.present? and not LearningCorpus.has_entry?(entry_id)
+                referents = ''
+
+                best_locations.each do |location, score|
+                    # use prefix because of three DBs: Countries (World), WorldCities and Geonames (Russia)
+                    if location.source == COUNTRIES_DB
+                        referents += 'c' + location.geonameid.to_s + ';'
+                    elsif location.source == WORLD_CITIES_DB
+                        referents += 'w' + location.geonameid.to_s + ';'
+                    else
+                        referents += 'g' + location.geonameid.to_s + ';'
+                    end
+                end
+
+                unless referents.blank?
+                    referents = referents[0...-1]
+
+                    context = @morph.remove_stop_words(@morph.normalize_words(parse_words(text)))
+                    LearningCorpus.add_entry(context, best_locations.first[0].name, referents, entry_id)
+                end
+            end
 
             return best_locations
         else
-            ## try to find similar entries in Learning corpus
-            #if LearningCorpus.consistent?
-            #    context = @morph.remove_stop_words(@morph.normalize_words(parse_words(text)))
-            #    similar_entries = LearningCorpus.get_similar_entries(context)
-            #
-            #    if similar_entries.present?
-            #        best = similar_entries.first
-            #
-            #        loc = get_location(best[0].referents.split(';').first)
-            #        loc.name = best[0].toponym
-            #        loc.source = LEARNING
-            #
-            #        best_locations << [loc, best[1]]
-            #    end
-            #end
+            # try to find similar entries in Learning corpus
+            if LearningCorpus.consistent?
+                context = @morph.remove_stop_words(@morph.normalize_words(parse_words(text)))
+                similar_entries = LearningCorpus.get_similar_entries(context)
+
+                if similar_entries.present?
+                    best = similar_entries.first
+
+                    loc = get_location(best[0].referents.split(';').first)
+                    loc.name = best[0].toponym
+                    loc.source = LEARNING
+
+                    best_locations << [loc, best[1]]
+                end
+            end
         end
 
         best_locations
@@ -209,14 +211,12 @@ class Lemmatizer
                 locations << location
                 locations_weights[location] = 0.5
 
-                if location.category == GLOBAL
-                    locations_weights[location] = 0.7
+                if location.category == COUNTRY or location.category == WORLD_POPULATION
+                    locations_weights[location] = 0.75
                 else
                     if location.category == RUSSIA
                         ru_location = location
                     end
-
-                    location_unit = Geonames2.where("geonameid = '#{location.geonameid}'").first
 
                     if not is_areas and location.fclass != POPULATION_CLASS
                         is_areas = true
@@ -224,8 +224,8 @@ class Lemmatizer
 
                     if location.fclass == POPULATION_CLASS
                         is_populations = true
-                        if location_unit.population > max_population
-                            max_population = location_unit.population
+                        if location.population > max_population
+                            max_population = location.population
                             max_population_location = location
                         end
                     end
@@ -256,7 +256,7 @@ class Lemmatizer
                     # remove areas which contain this population
                     locations.each do |l|
                         if l.acode == location.acode and l.fclass != POPULATION_CLASS
-                            locations_weights[location] = 0.8
+                            locations_weights[location] = 0.9
                             locations_weights.delete(l)
                             locations.delete(l)
 
@@ -286,20 +286,22 @@ class Lemmatizer
 
         # if there are populations with same names
         # save only one with max population
-        locations.each do |loc|
-            if loc.category == GLOBAL
-                locations.each do |loc2|
-                    if loc2.category == GLOBAL and loc.name == loc2.name and loc.geonameid != loc2.geonameid
+        locations.each_with_index do |loc, index|
+            if deleted.include?(loc)
+                next
+            end
+
+            (index + 1).upto(locations.count - 1) do |index2|
+                loc2 = locations[index2]
+                if loc.name == loc2.name and loc != loc2
+                    # global toponyms have more priority than russian
+                    if loc2.category == COUNTRY
                         deleted << loc2
-                    end
-                end
-            else
-                unit = Geonames2.where("geonameid = '#{loc.geonameid}'").first
-                locations.each do |loc2|
-                    if loc2.category != GLOBAL and loc.name == loc2.name and loc.geonameid != loc2.geonameid
-                        unit2 = Geonames2.where("geonameid = '#{loc2.geonameid}'").first
-                        if unit.population >= unit2.population
+                    else
+                        if loc.population >= loc2.population
                             deleted << loc2
+                        else
+                            deleted << loc
                         end
                     end
                 end
@@ -332,6 +334,7 @@ class Lemmatizer
                 loc.acode = unit.acode
                 loc.fclass = unit.fclass
                 loc.source = GEONAMES_DB
+                loc.population = unit.population
 
                 if unit.fclass == POPULATION_CLASS
                     loc.category = POPULATION
@@ -353,8 +356,9 @@ class Lemmatizer
                 loc = Location.new
                 loc.name = location
                 loc.geonameid = capital.id
-                loc.category = GLOBAL
+                loc.category = COUNTRY
                 loc.source = COUNTRIES_DB
+                loc.population = 0
                 locations << loc
             end
         else
@@ -362,8 +366,9 @@ class Lemmatizer
                 loc = Location.new
                 loc.name = location
                 loc.geonameid = country.id
-                loc.category = GLOBAL
+                loc.category = COUNTRY
                 loc.source = COUNTRIES_DB
+                loc.population = 0
                 locations << loc
             end
         end
@@ -376,8 +381,9 @@ class Lemmatizer
                 loc = Location.new
                 loc.name = location
                 loc.geonameid = city.geonameid
-                loc.category = GLOBAL
                 loc.source = WORLD_CITIES_DB
+                loc.category = WORLD_POPULATION
+                loc.population = city.population
                 locations << loc
             end
         end
@@ -408,11 +414,16 @@ class Lemmatizer
                 loc.category = REGIONAL
             end
 
+            loc.population = unit.population
             loc.fclass = unit.fclass
             loc.acode = unit.acode
+        elsif location_id.start_with?('w')
+            unit = WorldCities.where('geonameid = ?', loc.geonameid).first
+            loc.population = unit.population
+            loc.category = WORLD_POPULATION
         else
-            loc.category = GLOBAL
-            Countries.find(loc.geonameid)
+            loc.population = 0
+            loc.category = COUNTRY
         end
 
         loc
