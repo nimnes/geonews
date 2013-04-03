@@ -26,6 +26,7 @@
         for (var i = 0; i < parsed_json.length; i++) {
             var obj = parsed_json[i];
             var locations = obj.location.split(';');
+            var tags = obj.tags;
 
             for (var j = 0; j < locations.length; j++) {
                 var coords = locations[j].split(',')
@@ -43,7 +44,7 @@
                 myCollection.add(new ymaps.Placemark([coords[0], coords[1]], {
                     title: obj.name,
                     summary: obj.summary,
-                    location: coords[2]
+                    location: tags
                 }, {
                     preset: presetIcon
                 }));

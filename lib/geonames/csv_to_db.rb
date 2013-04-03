@@ -23,3 +23,9 @@ def import_world_cities
         WorldCities.create!(row.to_hash)
     end
 end
+
+def import_rules
+    CSV.foreach('./dicts/csv/user_rules.csv', :headers => true, :col_sep => ';') do |row|
+        UserRules.create!(row.to_hash)
+    end
+end

@@ -365,19 +365,22 @@ class Morph
     end
 
     def is_name?(word)
-        if word.nil? or word[:annotation].nil? or word[:annotation][1].nil?
-            return false
-        end
-
-        word[:annotation][1].include?('имя')
+        rule = @rules[word[:rule].to_i][word[:rule_part]]
+        @gramtab[rule[1]][1].include?(NAME)
     end
 
     def is_middle_name?(word)
-        if word.nil? or word[:annotation].nil? or word[:annotation][1].nil?
-            return false
+        rule = @rules[word[:rule].to_i][word[:rule_part]]
+        @gramtab[rule[1]][1].include?(MIDDLENAME)
+    end
+
+    def is_name_part?(word)
+        if word.nil?
+            false
+        else
+            is_name?(word) or is_surname?(word) or is_middle_name?(word)
         end
 
-        word[:annotation][1].include?('отч')
     end
 
     def get_rule(rule_id)
@@ -386,6 +389,30 @@ class Morph
 
     def get_lemma(lemma)
         @lemmas.get(lemma)
+    end
+
+    def check_coherence(word1, word2)
+        if word1.nil? or word2.nil?
+            return true
+        end
+
+        rule1 = @rules[word1[:rule].to_i][word1[:rule_part]]
+        info1 = @gramtab[rule1[1]][1]
+
+        if @gramtab[rule1[1]][0] != 'П'
+            return true
+        end
+
+        rule2 = @rules[word2[:rule].to_i][word2[:rule_part]]
+        info2 = @gramtab[rule2[1]][1]
+
+        #puts info1 + ' ' + info2
+
+        if info1[0...8] == info2[0...8]
+            true
+        else
+            false
+        end
     end
 
     # leave only nouns and adjectives

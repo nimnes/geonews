@@ -158,7 +158,7 @@ class FeedEntry < ActiveRecord::Base
                     categories << REGIONAL
                 end
 
-                unit = Geonames2.where("geonameid = '#{location.geonameid}'").first
+                unit = Geonames.where("geonameid = '#{location.geonameid}'").first
                 locations_str += COORDS_FMT % [unit.latitude, unit.longitude] + ';'
             end
         end

@@ -18,8 +18,7 @@ class Lemmatizer
           'пос. '  => 'поселок ',
           'м. '    => 'метро ',
           'респ. ' => 'республика ',
-          'обл. '  => 'область ',
-          'РФ '    => 'Россия '
+          'обл. '  => 'область '
         }
 
         @morph = Morph.new()
@@ -27,7 +26,8 @@ class Lemmatizer
         @administative_units = [ %w(ОБЛАСТЬ ЖР), %w(КРАЙ МР), %w(РАЙОН МР),
                                  %w(МОРЕ СР), %w(ОКРУГ МР), %w(ОЗЕРО СР),
                                  %w(УЛИЦА ЖР), %w(БУЛЬВАР МР), %w(ПРОСПЕКТ МР),
-                                 %w(ОСТРОВА МН)]
+                                 %w(ОСТРОВА МН), %w(ПЛОЩАДЬ ЖР), %w(ФЕДЕРАЦИЯ ЖР),
+                                 %w(ВОСТОК МР) ]
         @rule_classes = ['NOUN', 'С', 'ADJECTIVE', 'П', 'КР_ПРИЛ']
     end
 
@@ -57,13 +57,19 @@ class Lemmatizer
             persons = []
 
             skip_iterations = 0
+            prev_word = nil
 
             normal_sentence.each_with_index do |w, index|
                 if skip_iterations > 0
+                    skip_iterations -= 1
                     next
                 end
 
                 person  = Person.new
+
+                if @morph.is_name?(w)
+                    person.name = w[:normal_form]
+                end
 
                 if @morph.is_surname?(w)
                     person.surname = w[:normal_form]
@@ -96,12 +102,16 @@ class Lemmatizer
                             t_word = @morph.transform_word(w[:lemma], w[:rule], adm_unit[1])
 
                             unless t_word.blank?
-                                # delete adjective locations if there is area keyword after it
-                                0.upto(adjective_locations).each do |adj|
-                                    locations.pop
+                                possible_locs = self.possible_locations(t_word + ' ' + next_word[:normal_form])
+
+                                unless possible_locs.empty?
+                                    # delete adjective locations if there is area keyword after it
+                                    0.upto(adjective_locations).each do |adj|
+                                        locations.pop
+                                    end
                                 end
 
-                                self.possible_locations(t_word + ' ' + next_word[:normal_form]).each do |pl|
+                                possible_locs.each do |pl|
                                     locations << pl
                                 end
                             end
@@ -117,13 +127,17 @@ class Lemmatizer
                 end
 
                 if w[:is_location]
-                    # check for surnames around word (i.e. Vladimir is a city but Vladimir Putin - no! )
-                    unless @morph.is_surname?(normal_sentence[index - 1]) or
-                        @morph.is_surname?(normal_sentence[index + 1])
 
-                        self.possible_locations(w[:normal_form]).each do |pl|
-                            locations << pl
-                        end
+                    unless @morph.check_coherence(prev_word, w)
+                        next
+                    end
+
+                    if @morph.is_surname?(normal_sentence[index + 1]) or @morph.is_name?(normal_sentence[index - 1])
+                        next
+                    end
+
+                    self.possible_locations(w[:normal_form]).each do |pl|
+                        locations << pl
                     end
                 else
                     if @rule_classes.include?(@morph.get_word_class(w))
@@ -137,6 +151,8 @@ class Lemmatizer
                         end
                     end
                 end
+
+                prev_word = w
             end
 
             entity.locations = locations
@@ -233,6 +249,12 @@ class Lemmatizer
             end
         end
 
+        #locations.each do |l|
+        #    puts 'n: ' + l.name
+        #end
+        #
+        #puts '###'
+
         # delete Russia from location if there are russian areas or towns in locations
         if ru_location.present? and (is_areas or is_populations)
             locations_weights.delete(ru_location)
@@ -294,6 +316,11 @@ class Lemmatizer
             (index + 1).upto(locations.count - 1) do |index2|
                 loc2 = locations[index2]
                 if loc.name == loc2.name and loc != loc2
+                    if loc.fclass == ADMINISTRATIVE_CLASS and loc2.fclass == POPULATION_CLASS
+                        deleted << loc2
+                        next
+                    end
+
                     # global toponyms have more priority than russian
                     if loc2.category == COUNTRY
                         deleted << loc2
@@ -309,7 +336,6 @@ class Lemmatizer
         end
 
         deleted.each do |d|
-            locations.delete(d)
             locations_weights.delete(d)
         end
 
@@ -324,7 +350,7 @@ class Lemmatizer
         end
 
         # russian cities and areas
-        units = Geonames2.where('name ~* ?', "^#{location}$|^#{location}[,]|[,]#{location}[,]|[,]#{location}$")
+        units = Geonames.where('name ~* ?', "^#{location}$|^#{location}[,]|[,]#{location}[,]|[,]#{location}$")
 
         unless units.empty?
             units.each do |unit|
@@ -393,7 +419,7 @@ class Lemmatizer
 
     def get_location_name(location_id)
         if location_id.start_with?('g')
-            Geonames2.where('geonameid = ?', location_id[1..-1]).first.name
+            Geonames.where('geonameid = ?', location_id[1..-1]).first.name
         else
             Countries.find(location_id[1..-1]).name
         end
@@ -404,7 +430,7 @@ class Lemmatizer
         loc.geonameid = location_id[1..-1]
 
         if location_id.start_with?('g')
-            unit = Geonames2.where('geonameid = ?', loc.geonameid).first
+            unit = Geonames.where('geonameid = ?', loc.geonameid).first
 
             if unit.fclass == POPULATION_CLASS
                 loc.category = POPULATION
