@@ -3,7 +3,9 @@ require 'unicode_utils/upcase'
 require 'benchmark'
 
 class Morph
-    LOC_RULE = 'лок'
+    Token = Struct.new(:word, :normal, :lemma, :rule, :rule_part, :annotation, :is_location)
+    Rule = Struct.new(:suffix, :gram, :prefix)
+    Annotation = Struct.new(:rule, :prefix, :gram)
 
     def initialize
         @rules = []
@@ -67,30 +69,30 @@ class Morph
             line_rules = line.strip().split('%')
 
             tmp_rules = []
-            line_rules.each do |rule|
-                if rule.blank?
+            line_rules.each do |r|
+                if r.blank?
                     next
                 end
 
-                rule_parts = rule.split('*')
+                rule_parts = r.split('*')
+                rule_parts[2] = '' if rule_parts.count == 2
 
-                if rule_parts.length == 2
-                    rule_parts[2] = ''
-                end
-
-                suffix = rule_parts[0]
+                rule = Rule.new
+                rule.suffix = rule_parts[0]
+                rule.gram = rule_parts[1]
+                rule.prefix = rule_parts[2]
 
                 # create list of possible endings for prediction
-                unless suffix.blank?
-                    if @endings.has_key?(suffix)
-                        @endings[suffix] << rule_id
+                unless rule.suffix.blank?
+                    if @endings.has_key?(rule.suffix)
+                        @endings[rule.suffix] << rule_id
                     else
-                        @endings[suffix] = []
-                        @endings[suffix] << rule_id
+                        @endings[rule.suffix] = []
+                        @endings[rule.suffix] << rule_id
                     end
                 end
 
-                tmp_rules << rule_parts
+                tmp_rules << rule
             end
 
             @rules[rule_id] = tmp_rules
@@ -126,20 +128,22 @@ class Morph
             lemma_parts = line.split()
 
             # skip accents and user sessions
-            base = lemma_parts[0]
-            rule_id = lemma_parts[1]
-            prefix = lemma_parts[3]
-            ancode = lemma_parts[4]
+            lemma = lemma_parts[0]
 
-            if @lemmas.has_key?(base)
-                @lemmas[base] << [rule_id, prefix, ancode]
+            annotation = Annotation.new
+            annotation.rule = lemma_parts[1].to_i
+            annotation.prefix = lemma_parts[3]
+            annotation.gram = lemma_parts[4]
+
+            if @lemmas.has_key?(lemma)
+                @lemmas[lemma] << annotation
             else
-                @lemmas[base] = []
-                @lemmas[base] << [rule_id, prefix, ancode]
+                @lemmas[lemma] = []
+                @lemmas[lemma] << annotation
             end
 
             # count frequencies of rules for future lemma prediction
-            @rule_frequencies[rule_id.to_i] += 1
+            @rule_frequencies[annotation.rule] += 1
         end
 
         puts '[LEM] ' + section_lines.length.to_s + ' lemmas loaded.'
@@ -178,6 +182,7 @@ class Morph
             word = word.gsub(/["']/, '')
             is_quotes = true
         end
+
         word_str = word
 
         # try to found word in dictionary
@@ -189,24 +194,28 @@ class Morph
 
                 # at first check for location rules
                 annotations.each do |annotation|
-                    gram_info = @gramtab[annotation[2]]
+                    gram_info = @gramtab[annotation.gram]
                     if gram_info.nil? or gram_info[1].nil?
                         is_location = false
                     else
-                        is_location = (gram_info[1].include?(LOC_RULE) and not is_quotes)
+                        is_location = (gram_info[1].include?(LOCATION) and not is_quotes)
                     end
 
                     if is_location
-                        suffixes = @rules[annotation[0].to_i]
+                        rules = @rules[annotation.rule]
 
-                        suffixes.each_with_index do |suffix, index|
-                            if UnicodeUtils.upcase(word_str) + suffix[0] == UnicodeUtils.upcase(word)
-                                return [ UnicodeUtils.upcase(word_str) + suffixes[0][0],
-                                         UnicodeUtils.upcase(word_str),
-                                         annotation[0].to_i,
-                                         index,
-                                         gram_info,
-                                         is_location ]
+                        rules.each_with_index do |rule, index|
+                            if UnicodeUtils.upcase(word_str) + rule.suffix == UnicodeUtils.upcase(word)
+                                token = Token.new
+                                token.word = word
+                                token.normal = UnicodeUtils.upcase(word_str) + rules.first.suffix
+                                token.lemma = UnicodeUtils.upcase(word_str)
+                                token.rule = annotation.rule
+                                token.rule_part = index
+                                token.annotation = gram_info
+                                token.is_location = is_location
+
+                                return token
                             end
                         end
                     end
@@ -214,18 +223,23 @@ class Morph
 
                 # sort possible rules by id number
                 # more general rules have smaller id
-                annotations.sort_by{|k|k[0].to_i}.each do |annotation|
-                    suffixes = @rules[annotation[0].to_i]
+                annotations.sort_by{|k|k.rule}.each do |annotation|
+                    rules = @rules[annotation.rule]
 
-                    suffixes.each_with_index do |suffix, index|
-                        if UnicodeUtils.upcase(word_str) + suffix[0] == UnicodeUtils.upcase(word)
-                            gram_info = @gramtab[annotation[2]]
-                            return [ UnicodeUtils.upcase(word_str) + suffixes[0][0],
-                                     UnicodeUtils.upcase(word_str),
-                                     annotation[0].to_i,
-                                     index,
-                                     gram_info,
-                                     false ]
+                    rules.each_with_index do |rule, index|
+                        if UnicodeUtils.upcase(word_str) + rule.suffix == UnicodeUtils.upcase(word)
+                            gram_info = @gramtab[annotation.gram]
+
+                            token = Token.new
+                            token.word = word
+                            token.normal = UnicodeUtils.upcase(word_str) + rules.first.suffix
+                            token.lemma = UnicodeUtils.upcase(word_str)
+                            token.rule = annotation.rule
+                            token.rule_part = index
+                            token.annotation = gram_info
+                            token.is_location = false
+
+                            return token
                         end
                     end
                 end
@@ -234,19 +248,29 @@ class Morph
         end
 
         # try to found word in special lemma '#'
-        annotations = @lemmas.get('#')
+        annotations = @lemmas.get(SPECIAL_LEMMA)
         annotations.each do |annotation|
-            suffixes = @rules[annotation[0].to_i]
+            rules = @rules[annotation.rule]
 
-            suffixes.each_with_index do |suffix, index|
-                if suffix[0] == UnicodeUtils.upcase(word)
-                    gram_info = @gramtab[annotation[2]]
+            rules.each_with_index do |rule, index|
+                if rule.suffix == UnicodeUtils.upcase(word)
+                    gram_info = @gramtab[annotation.gram]
                     if gram_info.nil? or gram_info[1].nil?
                         is_location = false
                     else
-                        is_location = (gram_info[1].include?('лок') and not is_quotes)
+                        is_location = (gram_info[1].include?(LOCATION) and not is_quotes)
                     end
-                    return [suffixes[0][0], '#', annotation[0].to_i, index, gram_info, is_location]
+
+                    token = Token.new
+                    token.word = word
+                    token.normal = rules.first.suffix
+                    token.lemma = SPECIAL_LEMMA
+                    token.rule = annotation.rule
+                    token.rule_part = index
+                    token.annotation = gram_info
+                    token.is_location = is_location
+
+                    return token
                 end
             end
         end
@@ -270,8 +294,9 @@ class Morph
 
                         @rules[rule_id].each_with_index do |prule, index|
                             # predict only productive classes (noun, verb, adjective, adverb)
-                            #puts prule[1]
-                            if prule[0] == UnicodeUtils.upcase(word_suffix) and @productive_classes.include?(@gramtab[prule[1]][0])
+                            if prule.suffix == UnicodeUtils.upcase(word_suffix) and
+                                @productive_classes.include?(@gramtab[prule.gram][0])
+
                                 max_frequency = @rule_frequencies[rule_id]
                                 best_rule = rule_id
                                 best_rule_part = index
@@ -281,21 +306,26 @@ class Morph
                     end
                 end
 
-                predicted_word = word[0..-(i + 1)] + @rules[best_rule][0][0]
-                gram_info = @gramtab[@rules[best_rule][0][1]]
+                predicted_word = word[0..-(i + 1)] + @rules[best_rule].first.suffix
+                gram_info = @gramtab[@rules[best_rule].first.gram]
+
                 if gram_info.nil? or gram_info[1].nil?
                     is_location = false
                 else
-                    is_location = (gram_info[1].include?('лок') and not is_quotes)
+                    is_location = (gram_info[1].include?(LOCATION) and not is_quotes)
                 end
 
                 if max_frequency > 0
-                    return [ UnicodeUtils.upcase(predicted_word),
-                             word[0..-(i + 1)],
-                             best_rule,
-                             best_rule_part,
-                             gram_info,
-                             is_location ]
+                    token = Token.new
+                    token.word = word
+                    token.normal = UnicodeUtils.upcase(predicted_word)
+                    token.lemma = word[0..-(i + 1)]
+                    token.rule = best_rule
+                    token.rule_part = best_rule_part
+                    token.annotation = gram_info
+                    token.is_location = is_location
+
+                    return token
                 end
             end
         end
@@ -304,17 +334,10 @@ class Morph
     end
 
     def normalize_word(word)
-        normal_form = normalize(word)
+        normalized_word = normalize(word)
 
-        unless normal_form.nil?
-            return { word:  word,
-                  normal_form: normal_form[0],
-                  lemma: normal_form[1],
-                  rule: normal_form[2],
-                  rule_part: normal_form[3],
-                  annotation: normal_form[4],
-                  is_location: normal_form[5]
-            }
+        unless normalized_word.nil?
+            return normalized_word
         end
 
         nil
@@ -323,18 +346,10 @@ class Morph
     def normalize_words(words)
         normal_words = []
         words.each do |w|
-            normal_form = normalize(w)
+            normalized_word = normalize(w)
 
-            unless normal_form.nil?
-                h = { word:  w,
-                      normal_form: normal_form[0],
-                      lemma: normal_form[1],
-                      rule: normal_form[2],
-                      rule_part: normal_form[3],
-                      annotation: normal_form[4],
-                      is_location: normal_form[5]
-                    }
-                normal_words << h
+            unless normalized_word.nil?
+                normal_words << normalized_word
             end
         end
 
@@ -347,9 +362,9 @@ class Morph
             return ''
         end
 
-        @rules[rule_id.to_i].each do |r|
-            if @kinds[annotation].include?(r[1])
-                return lemma + r[0]
+        @rules[rule_id].each do |r|
+            if @kinds[annotation].include?(r.gram)
+                return lemma + r.suffix
             end
         end
 
@@ -357,21 +372,21 @@ class Morph
     end
 
     def is_surname?(word)
-        if word.nil? or word[:annotation].nil? or word[:annotation][1].nil?
+        if word.nil? or word.annotation.nil? or word.annotation[1].nil?
             return false
         end
 
-        word[:annotation][1].include?('фам')
+        word.annotation[1].include?(SURNAME)
     end
 
     def is_name?(word)
-        rule = @rules[word[:rule].to_i][word[:rule_part]]
-        @gramtab[rule[1]][1].include?(NAME)
+        rule = @rules[word.rule][word.rule_part]
+        @gramtab[rule.gram][1].include?(NAME)
     end
 
     def is_middle_name?(word)
-        rule = @rules[word[:rule].to_i][word[:rule_part]]
-        @gramtab[rule[1]][1].include?(MIDDLENAME)
+        rule = @rules[word.rule][word.rule_part]
+        @gramtab[rule.gram][1].include?(MIDDLENAME)
     end
 
     def is_name_part?(word)
@@ -396,17 +411,15 @@ class Morph
             return true
         end
 
-        rule1 = @rules[word1[:rule].to_i][word1[:rule_part]]
-        info1 = @gramtab[rule1[1]][1]
+        rule1 = @rules[word1.rule][word1.rule_part]
+        info1 = @gramtab[rule1.gram][1]
 
         if @gramtab[rule1[1]][0] != 'П'
             return true
         end
 
-        rule2 = @rules[word2[:rule].to_i][word2[:rule_part]]
-        info2 = @gramtab[rule2[1]][1]
-
-        #puts info1 + ' ' + info2
+        rule2 = @rules[word2.rule][word2.rule_part]
+        info2 = @gramtab[rule2.gram][1]
 
         if info1[0...8] == info2[0...8]
             true
@@ -420,20 +433,20 @@ class Morph
     def remove_stop_words(words)
         context_words = []
         words.each do |word|
-            if word[:is_location]
+            if word.is_location
                 next
             end
 
-            rule = @rules[word[:rule].to_i][word[:rule_part]]
-            if @context_classes.include?(@gramtab[rule[1]][0])
-                context_words << word[:normal_form]
+            rule = @rules[word.rule][word.rule_part]
+            if @context_classes.include?(@gramtab[rule.gram][0])
+                context_words << word.normal
             end
         end
         context_words
     end
 
     def get_word_class(word)
-        rule = @rules[word[:rule].to_i][word[:rule_part]]
-        @gramtab[rule[1]][0]
+        rule = @rules[word.rule][word.rule_part]
+        @gramtab[rule.gram][0]
     end
 end

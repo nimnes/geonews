@@ -26,6 +26,16 @@ namespace :feed do
         puts "[FEED] RESET COMPLETED in #{'%.3f' % time} seconds".light_green
     end
 
+    desc 'Clear FeedEntry table and Learning corpus'
+    task :clearnews => :environment do
+        puts '[FEED] DELETING NEWS'.light_green
+        time = Benchmark.realtime do
+            LearningCorpus.destroy_all
+            FeedEntry.destroy_all
+        end
+        puts "[FEED] DELETING COMPLETED in #{'%.3f' % time} seconds".light_green
+    end
+
     desc 'Read feeds from rssfeeds file and add it to Feeds model'
     task :readfeeds => :environment do
         puts '[FEED] READING FEEDS'.light_green

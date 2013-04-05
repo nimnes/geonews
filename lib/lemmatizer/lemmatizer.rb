@@ -68,11 +68,11 @@ class Lemmatizer
                 person  = Person.new
 
                 if @morph.is_name?(w)
-                    person.name = w[:normal_form]
+                    person.name = w.normal
                 end
 
                 if @morph.is_surname?(w)
-                    person.surname = w[:normal_form]
+                    person.surname = w.normal
                 end
 
                 unless person.none?
@@ -83,10 +83,10 @@ class Lemmatizer
                 if w[:rule] == 2
                     # search lemma in dictionary
                     # if it is in locations dictionary then try to find it in Geonames or Countries DBs
-                    normal_form = @morph.normalize_word(w[:lemma])
+                    normal_form = @morph.normalize_word(w.lemma)
 
-                    if not normal_form.nil? and normal_form[:is_location]
-                        self.possible_locations(w[:lemma]).each do |pl|
+                    if not normal_form.nil? and normal_form.is_location
+                        self.possible_locations(w.lemma).each do |pl|
                             adjective_locations += 1
                             locations << pl
                         end
@@ -98,11 +98,11 @@ class Lemmatizer
                 if next_word.present? and @rule_classes.include?(@morph.get_word_class(w))
                     # check for areas or regions
                     @administative_units.each do |adm_unit|
-                        if next_word[:normal_form] == adm_unit[0]
-                            t_word = @morph.transform_word(w[:lemma], w[:rule], adm_unit[1])
+                        if next_word.normal == adm_unit[0]
+                            t_word = @morph.transform_word(w.lemma, w.rule, adm_unit[1])
 
                             unless t_word.blank?
-                                possible_locs = self.possible_locations(t_word + ' ' + next_word[:normal_form])
+                                possible_locs = self.possible_locations(t_word + ' ' + next_word.normal)
 
                                 unless possible_locs.empty?
                                     # delete adjective locations if there is area keyword after it
@@ -126,7 +126,7 @@ class Lemmatizer
                     end
                 end
 
-                if w[:is_location]
+                if w.is_location
 
                     unless @morph.check_coherence(prev_word, w)
                         next
@@ -136,13 +136,13 @@ class Lemmatizer
                         next
                     end
 
-                    self.possible_locations(w[:normal_form]).each do |pl|
+                    self.possible_locations(w.normal).each do |pl|
                         locations << pl
                     end
                 else
                     if @rule_classes.include?(@morph.get_word_class(w))
                         # check user rules
-                        user_rule = UserRules.where('rule = ?', w[:normal_form]).first
+                        user_rule = UserRules.where('rule = ?', w.normal).first
                         if user_rule.present?
                             loc = get_location(user_rule.referent)
                             loc.name = UnicodeUtils.upcase(user_rule.toponym)
@@ -175,7 +175,7 @@ class Lemmatizer
                         referents += 'c' + location.geonameid.to_s + ';'
                     elsif location.source == WORLD_CITIES_DB
                         referents += 'w' + location.geonameid.to_s + ';'
-                    else
+                    elsif location.source == GEONAMES_DB
                         referents += 'g' + location.geonameid.to_s + ';'
                     end
                 end
@@ -200,6 +200,7 @@ class Lemmatizer
 
                     loc = get_location(best[0].referents.split(';').first)
                     loc.name = best[0].toponym
+
                     loc.source = LEARNING
 
                     best_locations << [loc, best[1]]
