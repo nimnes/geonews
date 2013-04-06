@@ -10,7 +10,9 @@ and place a message on a map.
 Thanks to AOT project (http://aot.ru) for dictionary of lemmas and
 https://github.com/kanwei/algorithms for implementation of Trie structure on Ruby.
 
-## How to use
+We use optimized version of Geonames database (only locations with population) from http://gis-lab.info/qa/geonames.html.
+
+## How to use?
 
 At first you must create databases and import data from csv files
 
@@ -26,7 +28,13 @@ rake feed:readfeeds
 rake feed:update
 ```
 
-for grabbing and toponym recognition for them
+for grabbing them and toponym recognition.
+
+You can add your own rules for toponym recognition in dicts/csv/user_rules.csv file and import them by
+
+```ruby
+rake rules:import
+```
 
 All news are stored in FeedEntry database, which store general information from RSS (i.e. title, summary) and 
-locations coordinates. Locations names are stored in tags field. Then it is used for displaying news on map.
+location coordinates. Location names are stored in tags field. 
