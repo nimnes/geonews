@@ -63,7 +63,7 @@ class FeedEntry < ActiveRecord::Base
 
     def self.update_feeds_location()
         completed = 0
-        pb = ProgressBar.create(:total => FeedEntry.count, :format => '%a [%e ] |%b| %p%%'.light_cyan)
+        pb = ProgressBar.create(:total => FeedEntry.count, :format => '%e |%b| %p%%'.light_cyan)
 
         FeedEntry.all.each do |entry|
             locations = @lemmatizer.define_location(entry.name + '. ' + entry.summary, entry.id)
@@ -165,7 +165,7 @@ class FeedEntry < ActiveRecord::Base
         if locations.present?
             if categories.include?(COUNTRY)
                 entry.update_attributes({:category => COUNTRY})
-            elsif categories.include?(REGIONAL)
+            elsif categories.include?(WORLD_POPULATION)
                 entry.update_attributes({:category => WORLD_POPULATION})
             elsif categories.include?(REGIONAL)
                 entry.update_attributes({:category => REGIONAL})
