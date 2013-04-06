@@ -177,12 +177,14 @@ class Morph
     # get normal form of a word
     def normalize(word)
         is_quotes = false
+
+        # word in quotes shouldn't be recognized as location
         if (word.start_with?("\"") and word.end_with?("\"")) or
             (word.start_with?("'") and word.end_with?("'"))
-            word = word.gsub(/["']/, '')
             is_quotes = true
         end
 
+        word = word.gsub(/["']/, '')
         word_str = word
 
         # try to found word in dictionary
@@ -244,6 +246,7 @@ class Morph
                     end
                 end
             end
+
             word_str = word_str[0...word_str.length - 1]
         end
 

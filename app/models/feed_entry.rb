@@ -63,14 +63,13 @@ class FeedEntry < ActiveRecord::Base
 
     def self.update_feeds_location()
         completed = 0
+        pb = ProgressBar.create(:total => FeedEntry.count, :format => '%a [%e ] |%b| %p%%'.light_cyan)
+
         FeedEntry.all.each do |entry|
             locations = @lemmatizer.define_location(entry.name + '. ' + entry.summary, entry.id)
             self.update_location(entry, locations)
-            completed += 1
 
-            if completed % 500 == 0
-                puts "#{completed} entries processed"
-            end
+            pb.increment
         end
     end
 

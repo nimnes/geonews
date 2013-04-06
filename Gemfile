@@ -19,7 +19,9 @@ gem 'whenever', :require => false
 gem 'pg'
 gem 'rails_db_dump'
 
+# sugar for console
 gem 'colorize'
+gem 'ruby-progressbar'
 
 # Gems used only for assets and not required
 # in production environments by default.

@@ -104,6 +104,7 @@ GEM
     rake (10.0.3)
     rdoc (3.12)
       json (~> 1.4)
+    ruby-progressbar (1.0.2)
     sass (3.2.5)
     sass-rails (3.2.6)
       railties (~> 3.2.0)
@@ -150,6 +151,7 @@ DEPENDENCIES
   pg
   rails (= 3.2.11)
   rails_db_dump
+  ruby-progressbar
   sass-rails (~> 3.2.3)
   select2-rails
   uglifier (>= 1.0.3)

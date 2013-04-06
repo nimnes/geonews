@@ -11,10 +11,11 @@ REGIONAL = 'region'
 
 COORDS_FMT = '%.2f,%.2f'
 
+MIN_ADJ_POPULATION = 50000
+
+# locations feature classes
 POPULATION_CLASS = 'P'
 ADMINISTRATIVE_CLASS = 'A'
-
-CONTEXT_SIZE = 4
 
 # location source types
 GEONAMES_DB = 'geonames'
