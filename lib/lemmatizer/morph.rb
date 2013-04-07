@@ -361,7 +361,7 @@ class Morph
 
     # transform word to neccessary form
     def transform_word(lemma, rule_id, annotation)
-        if rule_id.nil?
+        if rule_id.nil? or annotation.nil?
             return ''
         end
 
@@ -407,6 +407,17 @@ class Morph
 
     def get_lemma(lemma)
         @lemmas.get(lemma)
+    end
+
+    def get_word_kind(word)
+        rule = @rules[word.rule][word.rule_part]
+        @kinds.each do |kind, variants|
+            if variants.include?(rule.gram)
+                return kind
+            end
+        end
+
+        nil
     end
 
     def check_coherence(word1, word2)

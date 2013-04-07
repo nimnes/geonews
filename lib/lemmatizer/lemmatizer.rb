@@ -31,11 +31,18 @@ class Lemmatizer
         @morph.load_dictionary('./dicts/morphs.mrd', './dicts/rgramtab.tab')
         @administative_units = [
             %w(ОБЛАСТЬ ЖР), %w(КРАЙ МР), %w(РАЙОН МР),
+            %w(РЕГИОН МР), %w(ПЛОЩАДЬ ЖР),
             %w(МОРЕ СР), %w(ОКРУГ МР), %w(ОЗЕРО СР),
             %w(УЛИЦА ЖР), %w(БУЛЬВАР МР), %w(ПРОСПЕКТ МР),
-            %w(ОСТРОВА МН), %w(ПЛОЩАДЬ ЖР), %w(ФЕДЕРАЦИЯ ЖР),
-            %w(ВОСТОК МР), %w(ШОССЕ СР), %w(РЕГИОН МР)
+            %w(ОСТРОВА МН), %w(ФЕДЕРАЦИЯ ЖР),
+            %w(ВОСТОК МР), %w(ШОССЕ СР),
+            %w(ВОКЗАЛ МР), %w(СОБОР МР), %w(ЦЕРКОВЬ ЖР)
         ]
+
+        @geo_modificators = [
+            'ДАЛЬНИЙ', 'НИЖНИЙ', 'ВЕЛИКИЙ', 'СЕВЕРНЫЙ', 'ЮЖНЫЙ'
+        ]
+
         @rule_classes = ['NOUN', 'С', 'ADJECTIVE', 'П', 'КР_ПРИЛ']
     end
 
@@ -99,12 +106,13 @@ class Lemmatizer
                     # allow only locations with MINIMAL_POPULATION (default: 50000 people)
                     # it helps to filter wrong locations (Kirovskyy => Kirov, not Kirovsk)
                     # if no canditates found cut last letter of lemma (Kirovsk => Kirov)
-                    while adjective_locations == 0 and k < 2
+                    while adjective_locations == 0 and k < 3
                         normal_form = @morph.normalize_word(lemma)
 
                         if not normal_form.nil? and normal_form.is_location
                             self.possible_locations(lemma).each do |pl|
-                                if pl.population >= MIN_ADJ_POPULATION
+                                if pl.population >= MIN_ADJ_POPULATION or
+                                    pl.source == COUNTRIES_DB or pl.source == WORLD_CITIES_DB
                                     adjective_locations += 1
                                     locations << pl
                                 end
@@ -113,6 +121,30 @@ class Lemmatizer
 
                         lemma = lemma[0...-1]
                         k += 1
+                    end
+
+                    # one more try :)
+
+                    if k == 2 and adjective_locations == 0
+                        suffixes = ['Ь', 'ИЯ', 'А']
+
+                        s = 0
+                        while adjective_locations == 0 and s < suffixes.count
+                            lemma_tmp = lemma + suffixes[s]
+                            normal_form = @morph.normalize_word(lemma_tmp)
+
+                            if not normal_form.nil? and normal_form.is_location
+                                self.possible_locations(lemma_tmp).each do |pl|
+                                    if pl.population >= MIN_ADJ_POPULATION or
+                                        pl.source == COUNTRIES_DB or pl.source == WORLD_CITIES_DB
+                                        adjective_locations += 1
+                                        locations << pl
+                                    end
+                                end
+                            end
+
+                            s += 1
+                        end
                     end
                 end
 
@@ -130,9 +162,7 @@ class Lemmatizer
                             end
 
                             unless t_word.blank?
-                                possible_locs = self.possible_locations(t_word + ' ' + next_word.normal)
-
-                                possible_locs.each do |pl|
+                                self.possible_locations(t_word + ' ' + next_word.normal).each do |pl|
                                     locations << pl
                                 end
                             end
@@ -143,6 +173,23 @@ class Lemmatizer
                     end
 
                     if skip_iterations > 0
+                        next
+                    end
+                end
+
+                # check for words with modificators
+                # i.e. North Korea, South Korea
+                if next_word.present? and @rule_classes.include?(@morph.get_word_class(next_word))
+                    if @geo_modificators.include?(w.normal)
+                        t_word = @morph.transform_word(w.lemma, w.rule, @morph.get_word_kind(next_word))
+
+                        unless t_word.blank?
+                            self.possible_locations(t_word + ' ' + next_word.normal).each do |pl|
+                                locations << pl
+                            end
+                        end
+
+                        skip_iterations += 1
                         next
                     end
                 end
