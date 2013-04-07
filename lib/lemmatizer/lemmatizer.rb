@@ -403,6 +403,11 @@ class Lemmatizer
                         end
                     end
                 end
+
+                # delete similar locations with different names
+                if loc.geonameid == loc2.geonameid and loc.name != loc2.name
+                    deleted << loc2
+                end
             end
         end
 

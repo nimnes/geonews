@@ -20,7 +20,7 @@ class Morph
 
         # for transform_word function
         @kinds = {
-            'МР' => ['йа', 'аа', 'Юо', 'го'],
+            'МР' => ['йа', 'аа', 'Юо', 'го', 'ад'],
             'ЖР' => ['йж', 'га', 'Йа', 'Йм'],
             'СР' => ['йм', 'еа', 'Яз'],
             'МН' => ['йт']
@@ -410,7 +410,7 @@ class Morph
     end
 
     def get_word_kind(word)
-        rule = @rules[word.rule][word.rule_part]
+        rule = @rules[word.rule][0]
         @kinds.each do |kind, variants|
             if variants.include?(rule.gram)
                 return kind
