@@ -16,15 +16,15 @@ class Lemmatizer
     def initialize
         @general_reductions = %w("т.е." "см." "т.к." "т.н." "напр." "т.г." "т.о.")
         @geo_reductions = {
-          'г. '    => 'город ',
-          'ул. '   => 'улица ',
-          'с. '    => 'село ',
-          'пр. '   => 'проспект ',
-          'пл. '   => 'площадь ',
-          'пос. '  => 'поселок ',
-          'м. '    => 'метро ',
-          'респ. ' => 'республика ',
-          'обл. '  => 'область '
+          ' г.'    => ' город',
+          ' ул.'   => ' улица',
+          ' с.'    => ' село',
+          ' пр.'   => ' проспект',
+          ' пл.'   => ' площадь',
+          ' пос.'  => ' поселок',
+          ' м.'    => ' метро',
+          ' респ.' => ' республика',
+          ' обл.'  => ' область'
         }
 
         @morph = Morph.new()
@@ -125,7 +125,7 @@ class Lemmatizer
                             t_word = @morph.transform_word(w.lemma, w.rule, adm_unit[1])
 
                             # delete adjective locations if there is area keyword after it
-                            0.upto(adjective_locations).each do |adj|
+                            0.upto(adjective_locations - 1).each do |adj|
                                 locations.pop
                             end
 
@@ -150,6 +150,7 @@ class Lemmatizer
                 if w.is_location
                     # location name must start with uppercase letter
                     if w.word.first.is_upper? or index == 0
+
                         unless @morph.check_coherence(prev_word, w)
                             next
                         end
@@ -333,6 +334,11 @@ class Lemmatizer
 
             (index + 1).upto(locations.count - 1) do |index2|
                 loc2 = locations[index2]
+
+                if deleted.include?(loc2)
+                    next
+                end
+
                 if loc.name == loc2.name and loc != loc2
                     if loc.fclass == ADMINISTRATIVE_CLASS and loc2.fclass == POPULATION_CLASS
                         deleted << loc2
