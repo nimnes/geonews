@@ -106,7 +106,8 @@ class Lemmatizer
                     # allow only locations with MINIMAL_POPULATION (default: 50000 people)
                     # it helps to filter wrong locations (Kirovskyy => Kirov, not Kirovsk)
                     # if no canditates found cut last letter of lemma (Kirovsk => Kirov)
-                    while adjective_locations == 0 and k < 3
+                    while adjective_locations == 0 and k <= 2
+                        lemma = lemma[0...-1] if k > 0
                         normal_form = @morph.normalize_word(lemma)
 
                         if not normal_form.nil? and normal_form.is_location
@@ -115,17 +116,17 @@ class Lemmatizer
                                     pl.source == COUNTRIES_DB or pl.source == WORLD_CITIES_DB
                                     adjective_locations += 1
                                     locations << pl
+                                    break
                                 end
                             end
                         end
 
-                        lemma = lemma[0...-1]
                         k += 1
                     end
 
                     # one more try :)
-
-                    if k == 2 and adjective_locations == 0
+                    # most popular rules
+                    if k == 3 and adjective_locations == 0
                         suffixes = ['Ь', 'ИЯ', 'А']
 
                         s = 0
@@ -144,6 +145,21 @@ class Lemmatizer
                             end
 
                             s += 1
+                        end
+
+                        if adjective_locations == 0
+                            if lemma.end_with?('Й')
+                                lemma_tmp = lemma
+                                lemma_tmp[lemma_tmp.length - 1] = 'Я'
+
+                                self.possible_locations(lemma).each do |pl|
+                                    if pl.population >= MIN_ADJ_POPULATION or
+                                        pl.source == COUNTRIES_DB or pl.source == WORLD_CITIES_DB
+                                        adjective_locations += 1
+                                        locations << pl
+                                    end
+                                end
+                            end
                         end
                     end
                 end
@@ -292,7 +308,7 @@ class Lemmatizer
         max_population = 0
         max_population_location = nil
 
-        ru_location = nil
+        ru_locations = []
 
         entities.each do |entity|
             entity.locations.each do |location|
@@ -302,11 +318,9 @@ class Lemmatizer
                 if location.category == COUNTRY or location.category == WORLD_POPULATION
                     locations_weights[location] = 0.75
                 else
-                    if location.category == RUSSIA
-                        ru_location = location
-                    end
-
-                    if not is_areas and location.fclass != POPULATION_CLASS
+                    if location.category == RUSSIA and not ru_locations.include?(location)
+                        ru_locations << location
+                    elsif not is_areas and location.fclass != POPULATION_CLASS
                         is_areas = true
                     end
 
@@ -322,8 +336,11 @@ class Lemmatizer
         end
 
         # delete Russia from location if there are russian areas or towns in locations
-        if ru_location.present? and (is_areas or is_populations)
-            locations_weights.delete(ru_location)
+        if ru_locations.present? and (is_areas or is_populations)
+            ru_locations.each do |ru_loc|
+                locations_weights.delete(ru_loc)
+                locations.delete(ru_loc)
+            end
         end
 
         unless max_population_location.nil?
@@ -413,7 +430,6 @@ class Lemmatizer
 
         deleted.each do |d|
             locations_weights.delete(d)
-            locations.delete(d)
         end
 
         locations_weights.sort_by {|k,v| v}.reverse[0...3]
@@ -446,6 +462,7 @@ class Lemmatizer
                 else
                     loc.category = REGIONAL
                 end
+
                 locations << loc
             end
         end

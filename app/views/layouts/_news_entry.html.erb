@@ -1,7 +1,7 @@
 <% @news.all(:order => "published_at desc").each_with_index do |entry, index| %>
 <li>
 	<h4><%= entry.name %></h4>
-	<span class="content"><%= entry.summary.html_safe %></span>
+	<span class="content"><%= entry.summary %></span>
 	<span class="timestamp"><%= time_ago_in_words(entry.published_at) %></span>
 	<span class="pull-right">
       Теги:
