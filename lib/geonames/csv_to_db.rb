@@ -4,6 +4,7 @@ def import_all
     import_geonames
     import_countries
     import_world_cities
+    import_rules
 end
 
 def import_geonames

@@ -7,6 +7,9 @@ class CreateFeedEntries < ActiveRecord::Migration
       t.datetime :published_at
       t.string :guid
       t.string :location
+      t.string :tags
+      t.string :category
+      t.string :source
 
       t.timestamps
     end
