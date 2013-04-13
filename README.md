@@ -10,7 +10,8 @@ and place a message on a map.
 Thanks to AOT project (http://aot.ru) for dictionary of lemmas and
 https://github.com/kanwei/algorithms for implementation of Trie structure on Ruby.
 
-We use optimized version of Geonames database (only locations with population) from http://gis-lab.info/qa/geonames.html.
+We use optimized version of Geonames database (only locations with population) from http://gis-lab.info/qa/geonames.html, 
+own Countries with capitals DB and World cities DB  (http://download.geonames.org/export/dump/cities15000.zip).
 
 ## How to use?
 
