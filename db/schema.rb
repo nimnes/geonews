@@ -59,18 +59,6 @@ ActiveRecord::Schema.define(:version => 20130331121720) do
     t.datetime "updated_at", :null => false
   end
 
-  create_table "geonames2s", :force => true do |t|
-    t.string   "geonameid"
-    t.text     "name"
-    t.float    "latitude"
-    t.float    "longitude"
-    t.string   "fclass"
-    t.string   "acode"
-    t.integer  "population"
-    t.datetime "created_at", :null => false
-    t.datetime "updated_at", :null => false
-  end
-
   create_table "learning_corpus", :force => true do |t|
     t.string   "toponym"
     t.text     "context"

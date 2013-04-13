@@ -8,6 +8,6 @@ namespace :csv do
         time = Benchmark.realtime do
             import_all
         end
-        puts "[FEED] IMPORT COMPLETED in #{'%.3f' % time} seconds".light_green
+        puts "[CSV] IMPORT COMPLETED in #{'%.3f' % time} seconds".light_green
     end
 end
