@@ -1,10 +1,13 @@
 <script src="http://api-maps.yandex.ru/2.0/?load=package.full&lang=ru-RU" type="text/javascript"></script>
 
-<div id="map" style="width: 100%; height: 560px; border: 1px dashed">
-	
-</div>
+<div id="map" style="width: auto; height: 100%; border: 1px dashed"></div>
+
 <script async type="text/javascript">
     ymaps.ready(init);
+
+    $(document).ready(function(){
+        $('#map').height($(window).height() - 140);
+    });
 
     var i = 0;
 
@@ -16,7 +19,6 @@
 
         var myGeoObjects = [];
 
-        // TODO: add clusters for placemarks
         <% if @news.any? %>
         var news_json = "";
         news_json = <%= raw @news.to_json %>;
