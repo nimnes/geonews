@@ -4,15 +4,36 @@ require 'gchart'
 class StaticPagesController < ApplicationController
     Feedzirra::Feed.add_common_feed_entry_element('location', :as => :location)
 
+    ONE_DAY = '1'
+    THREE_DAYS = '2'
+    WEEK = '3'
+    MONTH = '4'
+
     def home
-        @news = FeedEntry.where("location IS NOT NULL")
-        render :action => "home", :layout => 'map'
+        if params[:period].present?
+            case params[:period]
+                when ONE_DAY
+                    @news = FeedEntry.where('location is NOT NULL AND published_at >= ?', 1.days.ago)
+                when THREE_DAYS
+                    @news = FeedEntry.where('location is NOT NULL AND published_at >= ?', 3.days.ago)
+                when WEEK
+                    @news = FeedEntry.where('location is NOT NULL AND published_at >= ?', 1.weeks.ago)
+                when MONTH
+                    @news = FeedEntry.where('location is NOT NULL AND published_at >= ?', 1.months.ago)
+                else
+                    @news = FeedEntry.where('location IS NOT NULL')
+            end
+        else
+            @news = FeedEntry.where('location is NOT NULL AND published_at >= ?', 1.days.ago)
+        end
+
+        render :action => 'home', :layout => 'map'
     end
 
     def lemmatizer
         @entities = []
         if params[:input_text].blank?
-            @input_text = ""
+            @input_text = ''
         else
             @entities = @@lemmatizer.define_location(params[:input_text])
             @input_text = params[:input_text]

@@ -1,12 +1,24 @@
 <script src="http://api-maps.yandex.ru/2.0/?load=package.full&lang=ru-RU" type="text/javascript"></script>
 
+<form name="periodForm" class="form-inline">
+  <label>Новости за: </label>
+  <%= select_tag(:period, options_for_select([['1 день', 1], ['3 дня', 2], ['неделю', 3], ['месяц', 4]], params[:period].to_i),
+                 :onchange => 'updatePeriod()') %>
+</form>
+
 <div id="map" style="width: auto; height: 100%; border: 1px dashed"></div>
+
+<script type="text/javascript">
+  function updatePeriod() {
+      document.forms["periodForm"].submit();
+  }
+</script>
 
 <script async type="text/javascript">
     ymaps.ready(init);
 
     $(document).ready(function(){
-        $('#map').height($(window).height() - 140);
+        $('#map').height($(window).height() - 190);
     });
 
     var i = 0;
