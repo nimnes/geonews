@@ -75,7 +75,6 @@ class Lemmatizer
             normal_sentence.each_with_index do |w, index|
                 if skip_iterations > 0
                     skip_iterations -= 1
-                    next
                 end
 
                 person  = Person.new
@@ -96,7 +95,7 @@ class Lemmatizer
 
                 # rule 2 - most common rule for adjectives
                 # adjectives may contain locations (i.e. Russians => Russia)
-                if w.rule == 2
+                if w.rule == 2 and (not w.word.first.is_upper? or index == 0)
                     lemma = w.lemma
                     k = 0
 

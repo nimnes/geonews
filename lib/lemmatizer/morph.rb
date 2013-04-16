@@ -365,6 +365,22 @@ class Morph
             return ''
         end
 
+        # check for rule #2 for this lemma
+        # i.e. Krasnoyarskom krae => Krasnoyarsk (NOUN)
+        # but we want Krasnoyrskom (ADJECTIVE)
+        if rule_id != 2
+            annotations = @lemmas.get(lemma)
+
+            if annotations.present?
+                annotations.each do |an|
+                    if an.rule == 2
+                        rule_id = 2
+                        break
+                    end
+                end
+            end
+        end
+
         @rules[rule_id].each do |r|
             if @kinds[annotation].include?(r.gram)
                 return lemma + r.suffix

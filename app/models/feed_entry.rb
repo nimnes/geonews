@@ -58,7 +58,7 @@ class FeedEntry < ActiveRecord::Base
         end
 
         # delete old news
-        FeedEntry.where('published_at < ?', 14.days.ago).destroy_all
+        FeedEntry.where('published_at < ?', 1.months.ago).destroy_all
     end
 
     def self.update_feeds_location()
@@ -76,7 +76,7 @@ class FeedEntry < ActiveRecord::Base
     def self.add_tag(entry, tags)
         if tags.nil? or tags.empty?
             entry.update_attributes({:tags => nil})
-            self.update_location(entry, {:name => nil, :coords => nil, :category => nil})
+            self.update_location(entry, nil)
             return true
         end
 
