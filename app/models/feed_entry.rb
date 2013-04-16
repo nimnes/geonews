@@ -58,7 +58,7 @@ class FeedEntry < ActiveRecord::Base
         end
 
         # delete old news
-        FeedEntry.where('published_at < ?', 3.days.ago).destroy_all
+        FeedEntry.where('published_at < ?', 14.days.ago).destroy_all
     end
 
     def self.update_feeds_location()

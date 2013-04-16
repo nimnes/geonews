@@ -29,7 +29,7 @@ class Lemmatizer
 
         @morph = Morph.new()
         @morph.load_dictionary('./dicts/morphs.mrd', './dicts/rgramtab.tab')
-        @administative_units = [
+        @administrative_units = [
             %w(ОБЛАСТЬ ЖР), %w(КРАЙ МР), %w(РАЙОН МР),
             %w(РЕГИОН МР), %w(ПЛОЩАДЬ ЖР),
             %w(МОРЕ СР), %w(ОКРУГ МР), %w(ОЗЕРО СР),
@@ -39,9 +39,7 @@ class Lemmatizer
             %w(ВОКЗАЛ МР), %w(СОБОР МР), %w(ЦЕРКОВЬ ЖР)
         ]
 
-        @geo_modificators = [
-            'ДАЛЬНИЙ', 'НИЖНИЙ', 'ВЕЛИКИЙ', 'СЕВЕРНЫЙ', 'ЮЖНЫЙ'
-        ]
+        @geo_modificators = ['ДАЛЬНИЙ', 'НИЖНИЙ', 'ВЕЛИКИЙ', 'СЕВЕРНЫЙ', 'ЮЖНЫЙ']
 
         @rule_classes = ['NOUN', 'С', 'ADJECTIVE', 'П', 'КР_ПРИЛ']
     end
@@ -168,7 +166,7 @@ class Lemmatizer
 
                 if next_word.present? and @rule_classes.include?(@morph.get_word_class(w))
                     # check for areas or regions
-                    @administative_units.each do |adm_unit|
+                    @administrative_units.each do |adm_unit|
                         if next_word.normal == adm_unit[0]
                             t_word = @morph.transform_word(w.lemma, w.rule, adm_unit[1])
 
@@ -227,8 +225,8 @@ class Lemmatizer
                         end
                     end
                 else
+                    # check user rules
                     if @rule_classes.include?(@morph.get_word_class(w))
-                        # check user rules
                         user_rules = UserRules.where('rule ~* ?', "^#{w.normal}$|^#{w.normal}[,]")
 
                         if user_rules.present?

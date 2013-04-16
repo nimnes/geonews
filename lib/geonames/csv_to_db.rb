@@ -1,4 +1,4 @@
-require "csv"
+require 'csv'
 
 def import_all
     import_geonames
