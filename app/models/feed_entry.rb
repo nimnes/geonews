@@ -66,7 +66,7 @@ class FeedEntry < ActiveRecord::Base
         pb = ProgressBar.create(:total => FeedEntry.count, :format => '%e |%b| %p%%'.light_cyan)
 
         FeedEntry.all.each do |entry|
-            locations = @lemmatizer.define_location(entry.name.to_s + '. ' + entry.summary.to_s, entry.id)
+            locations = @lemmatizer.define_location(entry.name.to_s + '. ' + entry.summary.to_s, entry.guid)
             self.update_location(entry, locations)
 
             pb.increment
@@ -96,7 +96,7 @@ class FeedEntry < ActiveRecord::Base
             locations = @lemmatizer.define_location(tags_str)
             self.update_location(entry, locations)
 
-            @lemmatizer.add_to_learning_corpus(entry.name.to_s + '. ' + entry.summary.to_s, locations, [], entry.id)
+            @lemmatizer.add_to_learning_corpus(entry.name.to_s + '. ' + entry.summary.to_s, locations, [], entry.guid)
         end
 
         return true
@@ -106,8 +106,6 @@ class FeedEntry < ActiveRecord::Base
     def self.add_entries(entries)
         entries.each do |entry|
             unless exists? :guid => entry.id
-                entry_locations = @lemmatizer.define_location(entry.title.to_s + '. ' + entry.summary.to_s, entry.id)
-
                 item = create!(
                     :name         => entry.title,
                     :summary      => entry.summary,
@@ -120,6 +118,7 @@ class FeedEntry < ActiveRecord::Base
                     :source       => nil
                     )
 
+                entry_locations = @lemmatizer.define_location(entry.title.to_s + '. ' + entry.summary.to_s, entry.id)
                 self.update_location(item, entry_locations)
             end
         end

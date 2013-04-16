@@ -37,7 +37,7 @@ class LearningCorpus < ActiveRecord::Base
             :referents       => referents,
             :persons         => persons_str,
             :entryid         => entry_id,
-            :entrydate       => FeedEntry.find(entry_id).published_at
+            :entrydate       => FeedEntry.where('guid = ?', entry_id.to_s).first.published_at
         )
     end
 
