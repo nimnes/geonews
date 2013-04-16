@@ -229,12 +229,36 @@ class Lemmatizer
                 else
                     if @rule_classes.include?(@morph.get_word_class(w))
                         # check user rules
-                        user_rule = UserRules.where('rule = ?', w.normal).first
-                        if user_rule.present?
-                            loc = get_location(user_rule.referent)
-                            loc.name = UnicodeUtils.upcase(user_rule.toponym)
-                            loc.source = USER_RULES
-                            locations << loc
+                        user_rules = UserRules.where('rule ~* ?', "^#{w.normal}$|^#{w.normal}[,]")
+
+                        if user_rules.present?
+                            user_rules.each do |ur|
+                                rule_words = ur.rule.split(',')
+
+                                rw_ind = 0
+                                tmp_word = w.normal
+                                while rw_ind < rule_words.count and tmp_word == rule_words[rw_ind]
+                                    tmp_word = normal_sentence[index + 1]
+                                    rw_ind += 1
+                                end
+
+                                if rw_ind == rule_words.count
+                                    if ur.ruletype == PLACE
+                                        loc = get_location(ur.referent)
+                                        loc.name = UnicodeUtils.upcase(ur.toponym)
+                                        loc.source = USER_RULES
+                                        locations << loc
+                                    else
+                                        skip_iterations += rule_words.count - 1
+                                    end
+
+                                    break
+                                end
+                            end
+
+                            if skip_iterations > 0
+                                next
+                            end
                         end
                     end
                 end
@@ -318,8 +342,10 @@ class Lemmatizer
                 if location.category == COUNTRY or location.category == WORLD_POPULATION
                     locations_weights[location] = 0.75
                 else
-                    if location.category == RUSSIA and not ru_locations.include?(location)
-                        ru_locations << location
+                    if location.category == RUSSIA
+                        unless ru_locations.include?(location)
+                            ru_locations << location
+                        end
                     elsif not is_areas and location.fclass != POPULATION_CLASS
                         is_areas = true
                     end

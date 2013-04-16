@@ -30,3 +30,7 @@ SURNAME = 'фам'
 MIDDLENAME = 'отч'
 LOCATION = 'лок'
 SPECIAL_LEMMA = '#'
+
+# user rules types
+PLACE = 'place'
+STOP_WORD = 'stop'
