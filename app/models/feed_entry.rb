@@ -95,6 +95,8 @@ class FeedEntry < ActiveRecord::Base
         unless tags_str.blank?
             locations = @lemmatizer.define_location(tags_str)
             self.update_location(entry, locations)
+
+            @lemmatizer.add_to_learning_corpus(entry.name.to_s + '. ' + entry.summary.to_s, locations, [], entry.id)
         end
 
         return true

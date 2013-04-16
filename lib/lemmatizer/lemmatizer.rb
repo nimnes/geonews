@@ -51,6 +51,7 @@ class Lemmatizer
     def define_location(text, entry_id = nil)
         sentences = parse_sentences(text)
         entities = []
+        persons = []
 
         # parse sentences of feeds entry, result is table of locations sorted by score
         # |    LOCATION    |   SCORE   |
@@ -67,7 +68,6 @@ class Lemmatizer
 
             entity = Entity.new
             locations = []
-            persons = []
 
             skip_iterations = 0
             prev_word = nil
@@ -77,18 +77,9 @@ class Lemmatizer
                     skip_iterations -= 1
                 end
 
-                person  = Person.new
-
-                if @morph.is_name?(w)
-                    person.name = w.normal
-                end
-
-                if @morph.is_surname?(w)
-                    person.surname = w.normal
-                end
-
-                unless person.none?
-                    persons << person
+                # save persons form entry for future recognizing entries with learning
+                if w.word.first.is_upper? and @morph.is_surname?(w)
+                    persons << w.normal
                 end
 
                 adjective_locations = 0
@@ -264,7 +255,6 @@ class Lemmatizer
             end
 
             entity.locations = locations
-            entity.persons = persons
             entity.time = nil
 
             entities << entity
@@ -273,33 +263,12 @@ class Lemmatizer
         best_locations = self.define_locations_weights(entities)
 
         if best_locations.present?
-            # add resolved entries to LearningCorpus
-            if entry_id.present? and not LearningCorpus.has_entry?(entry_id)
-                referents = ''
-
-                best_locations.each do |location, score|
-                    # use prefix because of three DBs: Countries (World), WorldCities and Geonames (Russia)
-                    if location.source == COUNTRIES_DB
-                        referents += 'c' + location.geonameid.to_s + ';'
-                    elsif location.source == WORLD_CITIES_DB
-                        referents += 'w' + location.geonameid.to_s + ';'
-                    elsif location.source == GEONAMES_DB
-                        referents += 'g' + location.geonameid.to_s + ';'
-                    end
-                end
-
-                unless referents.blank?
-                    referents = referents[0...-1]
-
-                    context = @morph.remove_stop_words(@morph.normalize_words(parse_words(text)))
-                    LearningCorpus.add_entry(context, best_locations.first[0].name, referents, entry_id)
-                end
-            end
-
+            self.add_to_learning_corpus(text, best_locations, persons, entry_id)
             return best_locations
         else
             # try to find similar entries in Learning corpus
             if LearningCorpus.consistent?
+                # by entry context
                 context = @morph.remove_stop_words(@morph.normalize_words(parse_words(text)))
                 similar_entries = LearningCorpus.get_similar_entries(context)
 
@@ -312,6 +281,20 @@ class Lemmatizer
                     loc.source = LEARNING
 
                     best_locations << [loc, best[1]]
+                else
+                    # by persons from entry
+                    similar_person_entries = LearningCorpus.get_entries_with_persons(persons)
+
+                    if similar_person_entries.present?
+                        best_location = most_common_value(similar_person_entries.keys)
+                        loc = get_location(best_location)
+                        loc.name = similar_person_entries[best_location]
+                        loc.source = LEARNING
+
+                        best_locations << [loc, 0.9]
+
+                        #puts entry_id.to_s + ' ' + loc.name + ' ' + persons.to_s
+                    end
                 end
             end
         end
@@ -572,6 +555,31 @@ class Lemmatizer
         loc
     end
 
+    def add_to_learning_corpus(text, locations, persons, entry_id)
+        # add resolved entries to LearningCorpus
+        if entry_id.present? and not LearningCorpus.has_entry?(entry_id)
+            referents = ''
+
+            locations.each do |location, score|
+                # use prefix because of three DBs: Countries (World), WorldCities and Geonames (Russia)
+                if location.source == COUNTRIES_DB
+                    referents += 'c' + location.geonameid.to_s + ';'
+                elsif location.source == WORLD_CITIES_DB
+                    referents += 'w' + location.geonameid.to_s + ';'
+                elsif location.source == GEONAMES_DB
+                    referents += 'g' + location.geonameid.to_s + ';'
+                end
+            end
+
+            unless referents.blank?
+                referents = referents[0...-1]
+
+                context = @morph.remove_stop_words(@morph.normalize_words(parse_words(text)))
+                LearningCorpus.add_entry(context, locations.first[0].name, referents, persons, entry_id)
+            end
+        end
+    end
+
     def parse_sentences(text)
         text = text.strip
 
@@ -605,5 +613,11 @@ class Lemmatizer
 
     def normalize_word(word)
         @morph.normalize(word)
+    end
+
+    def most_common_value(a)
+        a.group_by do |e|
+            e
+        end.values.max_by(&:size).first
     end
 end

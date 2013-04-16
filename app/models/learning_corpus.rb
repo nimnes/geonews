@@ -1,12 +1,13 @@
 class LearningCorpus < ActiveRecord::Base
-    attr_accessible :context, :entryid, :referents, :toponym
+    attr_accessible :context, :entryid, :referents, :toponym, :persons, :entrydate
 
     CORPUS_SIZE = 2000
     MIN_CORPUS_SIZE = 500
     MIN_SIMILARITY = 0.55
 
-    def self.add_entry(context, toponym, referents, entry_id)
+    def self.add_entry(context, toponym, referents, entry_persons, entry_id)
         context_str = ''
+        persons_str = ''
 
         context.each do |w|
             context_str += w + ','
@@ -14,6 +15,14 @@ class LearningCorpus < ActiveRecord::Base
 
         unless context_str.blank?
             context_str = context_str[0...-1]
+        end
+
+        entry_persons.each do |p|
+            persons_str += p + ','
+        end
+
+        unless persons_str.blank?
+            persons_str = persons_str[0...-1]
         end
 
         # delete first record (oldest) and add new one to the end
@@ -26,7 +35,9 @@ class LearningCorpus < ActiveRecord::Base
             :context         => context_str,
             :toponym         => toponym,
             :referents       => referents,
+            :persons         => persons_str,
             :entryid         => entry_id,
+            :entrydate       => FeedEntry.find(entry_id).published_at
         )
     end
 
@@ -47,6 +58,37 @@ class LearningCorpus < ActiveRecord::Base
         end
 
         similar_entries.sort_by {|x,y| y}
+    end
+
+    def self.get_entries_with_persons(persons_arr)
+        similar_entries = []
+
+        LearningCorpus.all.each do |item|
+            # check only new entries, because location for this persons can change
+            if item.persons.blank? or item.entrydate < 12.hours.ago
+                next
+            end
+
+            vectors = self.vectorize(item.persons.split(','), persons_arr)
+
+            cos_similarity = self.cosine_similarity(vectors.first, vectors.last)
+
+            if cos_similarity >= MIN_SIMILARITY
+                similar_entries << [item, cos_similarity]
+            end
+        end
+
+        possible_locations = {}
+
+        # save only persons who meet in few feed entries
+        # and return only most popular location
+        if similar_entries.count > 1
+            similar_entries.each do |entry, score|
+                possible_locations[entry.referents.split(';').first] = entry.toponym
+            end
+        end
+
+        return possible_locations
     end
 
     # create vectors for two texts
