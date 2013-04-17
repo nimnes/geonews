@@ -20,6 +20,6 @@ CSV.foreach('../../dicts/cities15000.csv', options={:col_sep => "\t"}) do |row|
     end
 
     if ru_names != ""
-        writer << [row[0], ru_names, row[4], row[5], row[14]]
+        writer << [row[0], ru_names, row[4], row[5], row[8], row[14]]
     end
 end

@@ -319,7 +319,7 @@ class Lemmatizer
                 locations << location
                 locations_weights[location] = 0.5
 
-                if location.category == COUNTRY or location.category == WORLD_POPULATION
+                if location.category == COUNTRY
                     locations_weights[location] = 0.75
                 else
                     if location.category == RUSSIA
@@ -475,23 +475,24 @@ class Lemmatizer
 
         # other countries and their capitals
         countries = Countries.where('name ~* ?', "^#{location}$|^#{location}[,]|[,]#{location}[,]|[,]#{location}$")
-        if countries.empty?
-            capitals = Countries.where('capital ~* ?', "^#{location}$|^#{location}[,]|[,]#{location}[,]|[,]#{location}$")
-
-            capitals.each do |capital|
-                loc = Location.new
-                loc.name = location
-                loc.geonameid = capital.id
-                loc.category = COUNTRY
-                loc.source = COUNTRIES_DB
-                loc.population = 0
-                locations << loc
-            end
-        else
+        if countries.present?
+        #    capitals = Countries.where('capital ~* ?', "^#{location}$|^#{location}[,]|[,]#{location}[,]|[,]#{location}$")
+        #
+        #    capitals.each do |capital|
+        #        loc = Location.new
+        #        loc.name = location
+        #        loc.geonameid = capital.id
+        #        loc.category = COUNTRY
+        #        loc.source = COUNTRIES_DB
+        #        loc.population = 0
+        #        locations << loc
+        #    end
+        #else
             countries.each do |country|
                 loc = Location.new
                 loc.name = location
                 loc.geonameid = country.id
+                loc.acode = country.code
                 loc.category = COUNTRY
                 loc.source = COUNTRIES_DB
                 loc.population = 0
@@ -506,6 +507,8 @@ class Lemmatizer
             cities.each do |city|
                 loc = Location.new
                 loc.name = location
+                loc.acode = city.countrycode
+                loc.fclass = POPULATION_CLASS
                 loc.geonameid = city.geonameid
                 loc.source = WORLD_CITIES_DB
                 loc.category = WORLD_POPULATION
@@ -547,9 +550,13 @@ class Lemmatizer
             unit = WorldCities.where('geonameid = ?', loc.geonameid).first
             loc.population = unit.population
             loc.category = WORLD_POPULATION
+            loc.acode = unit.countrycode
+            loc.fclass = POPULATION_CLASS
         else
+            unit = Countries.find(loc.geonameid)
             loc.population = 0
             loc.category = COUNTRY
+            loc.acode = unit.code
         end
 
         loc
