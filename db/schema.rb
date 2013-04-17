@@ -11,7 +11,7 @@
 #
 # It's strongly recommended to check this file into your version control system.
 
-ActiveRecord::Schema.define(:version => 20130416135157) do
+ActiveRecord::Schema.define(:version => 20130417185151) do
 
   create_table "countries", :force => true do |t|
     t.string   "code"
@@ -35,6 +35,7 @@ ActiveRecord::Schema.define(:version => 20130416135157) do
     t.string   "tags"
     t.string   "category"
     t.string   "source"
+    t.integer  "feedcategory"
   end
 
   create_table "feeds", :force => true do |t|
@@ -45,6 +46,7 @@ ActiveRecord::Schema.define(:version => 20130416135157) do
     t.datetime "last_modified"
     t.datetime "created_at",    :null => false
     t.datetime "updated_at",    :null => false
+    t.integer  "category"
   end
 
   create_table "geonames", :force => true do |t|

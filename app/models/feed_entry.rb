@@ -1,14 +1,14 @@
 class FeedEntry < ActiveRecord::Base
-    attr_accessible :guid, :name, :published_at, :summary, :url, :location, :tags, :category, :source
+    attr_accessible :guid, :name, :published_at, :summary, :url, :location, :tags, :category, :source, :feedcategory
     COMMA = ', '
 
     def self.set_lemmatizer(lem)
         @lemmatizer = lem
     end
 
-    def self.add_feed(feed_url)
+    def self.add_feed(feed_url, feed_category)
         feed = Feedzirra::Feed.fetch_and_parse(feed_url)
-        add_entries(feed.entries)
+        add_entries(feed.entries, feed.category)
 
         # save feeds in database for future updating
         if Feeds.where('feed_url = ?', feed_url).empty?
@@ -18,7 +18,8 @@ class FeedEntry < ActiveRecord::Base
                 :url            => feed.url,
                 :feed_url       => feed.feed_url,
                 :etag           => feed.etag,
-                :last_modified  => feed.last_modified
+                :last_modified  => feed.last_modified,
+                :category       => feed_category
             )
         end
     end
@@ -52,7 +53,7 @@ class FeedEntry < ActiveRecord::Base
             feed_to_update.last_modified = feed.last_modified
 
             updated_feed = Feedzirra::Feed.update(feed_to_update)
-            add_entries(updated_feed.new_entries) if updated_feed.updated?
+            add_entries(updated_feed.new_entries, feed.category) if updated_feed.updated?
 
             feed.update_attributes(:last_modified => updated_feed.last_modified)
         end
@@ -103,7 +104,7 @@ class FeedEntry < ActiveRecord::Base
     end
 
     private
-    def self.add_entries(entries)
+    def self.add_entries(entries, fcategory = COMMON)
         entries.each do |entry|
             unless exists? :guid => entry.id
                 item = create!(
@@ -115,7 +116,8 @@ class FeedEntry < ActiveRecord::Base
                     :location     => nil,
                     :tags         => nil,
                     :category     => nil,
-                    :source       => nil
+                    :source       => nil,
+                    :feedcategory => fcategory
                     )
 
                 entry_locations = @lemmatizer.define_location(entry.title.to_s + '. ' + entry.summary.to_s, entry.id)

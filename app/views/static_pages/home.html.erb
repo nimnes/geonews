@@ -4,12 +4,38 @@
   <label>Новости за: </label>
   <%= select_tag(:period, options_for_select([['1 день', 1], ['3 дня', 2], ['неделю', 3], ['месяц', 4]], params[:period].to_i),
                  :onchange => 'updatePeriod()') %>
+
+  <label>Категория: </label>
+  <%= select_tag(:category, options_for_select([
+                                              ['Все', 0],
+                                              ['Общие', 1],
+                                              ['Политика', 2],
+                                              ['В мире', 3],
+                                              ['Общество', 4],
+                                              ['Экономика', 5],
+                                              ['Спорт', 6],
+                                              ['Происшествия', 7],
+                                              ['Культура', 8],
+                                              ['Наука', 9],
+                                              ['Здоровье', 10],
+                                              ['Hi-Tech', 11],
+                                              ['Интернет', 12],
+                                              ['Авто', 13],
+                                              ['Туризм', 14],
+                                              ['Образование', 15],
+                                              ['Безопасность', 16]
+                                             ], params[:category].to_i),
+                 :onchange => 'updateCategory()') %>
 </form>
 
 <div id="map" style="width: auto; height: 100%; border: 1px dashed"></div>
 
 <script type="text/javascript">
   function updatePeriod() {
+      document.forms["periodForm"].submit();
+  }
+
+  function updateCategory() {
       document.forms["periodForm"].submit();
   }
 </script>
@@ -91,7 +117,8 @@
             clusterDisableClickZoom: true,
             clusterBalloonContentBodyLayout: 'cluster#balloonAccordionContent',
             clusterBalloonAccordionItemContentLayout: 'my#clusterLayout',
-            clusterBalloonWidth: 400
+            clusterBalloonWidth: 400,
+            clusterNumbers: [10]
         });
         clusterer.add(myGeoObjects);
 

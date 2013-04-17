@@ -47,8 +47,9 @@ namespace :feed do
             feeds_file = File.new('./dicts/rssfeeds')
 
             while (line = feeds_file.gets)
-                if Feeds.where('feed_url = ?', line).empty?
-                    FeedEntry.add_feed(line)
+                arr = line.split(';')
+                if arr.present? and Feeds.where('feed_url = ?', arr[0]).empty?
+                    FeedEntry.add_feed(arr[0], arr[1].to_i)
                 end
             end
         end

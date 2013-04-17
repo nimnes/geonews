@@ -4,13 +4,25 @@ require 'gchart'
 class StaticPagesController < ApplicationController
     Feedzirra::Feed.add_common_feed_entry_element('location', :as => :location)
 
+    ALL_TIME = '0'
     ONE_DAY = '1'
     THREE_DAYS = '2'
     WEEK = '3'
     MONTH = '4'
 
     def home
+        news_period = ALL_TIME
+        news_category = ALL
+
         if params[:period].present?
+            news_period = params[:period]
+        end
+
+        if params[:category].present?
+            news_category = params[:category].to_i
+        end
+
+        if news_category == ALL
             case params[:period]
                 when ONE_DAY
                     @news = FeedEntry.where('location is NOT NULL AND published_at >= ?', 1.days.ago)
@@ -24,7 +36,18 @@ class StaticPagesController < ApplicationController
                     @news = FeedEntry.where('location IS NOT NULL')
             end
         else
-            @news = FeedEntry.where('location is NOT NULL AND published_at >= ?', 1.days.ago)
+            case params[:period]
+                when ONE_DAY
+                    @news = FeedEntry.where('location is NOT NULL AND published_at >= ? AND feedcategory = ?', 1.days.ago, news_category)
+                when THREE_DAYS
+                    @news = FeedEntry.where('location is NOT NULL AND published_at >= ? AND feedcategory = ?', 3.days.ago, news_category)
+                when WEEK
+                    @news = FeedEntry.where('location is NOT NULL AND published_at >= ? AND feedcategory = ?', 1.weeks.ago, news_category)
+                when MONTH
+                    @news = FeedEntry.where('location is NOT NULL AND published_at >= ? AND feedcategory = ?', 1.months.ago, news_category)
+                else
+                    @news = FeedEntry.where('location IS NOT NULL AND feedcategory = ?', news_category)
+            end
         end
 
         render :action => 'home', :layout => 'map'
