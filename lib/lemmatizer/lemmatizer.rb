@@ -75,11 +75,80 @@ class Lemmatizer
             normal_sentence.each_with_index do |w, index|
                 if skip_iterations > 0
                     skip_iterations -= 1
+                    next
                 end
 
                 # save persons form entry for future recognizing entries with learning
                 if w.word.first.is_upper? and @morph.is_surname?(w)
                     persons << w.normal
+                end
+
+                next_word = normal_sentence[index + 1]
+
+                # check user rules
+                if @rule_classes.include?(@morph.get_word_class(w))
+                    user_rules = UserRules.where('rule ~* ?', "^#{w.normal}$|^#{w.normal}[,]")
+
+                    if user_rules.present?
+                        user_rules.each do |ur|
+                            rule_words = ur.rule.split(',')
+
+                            rw_ind = 0
+                            tmp_word = w.normal
+
+                            while rw_ind < rule_words.count and tmp_word == rule_words[rw_ind]
+                                rw_ind += 1
+                                if normal_sentence[index + rw_ind].nil?
+                                    break
+                                else
+                                    tmp_word = normal_sentence[index + rw_ind].normal
+                                end
+                            end
+
+                            if rw_ind == rule_words.count
+                                if ur.ruletype == PLACE
+                                    loc = get_location(ur.referent)
+                                    loc.name = UnicodeUtils.upcase(ur.toponym)
+                                    loc.source = USER_RULES
+                                    locations << loc
+                                else
+                                    skip_iterations += rule_words.count
+                                    if skip_iterations > 0
+                                        skip_iterations -= 1
+                                        next
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+
+                # check for areas or regions
+                if next_word.present? and @rule_classes.include?(@morph.get_word_class(w))
+                    @administrative_units.each do |adm_unit|
+                        if next_word.normal == adm_unit[0]
+                            t_word = @morph.transform_word(w.lemma, w.rule, adm_unit[1])
+
+                            ## delete adjective locations if there is area keyword after it
+                            #0.upto(adjective_locations - 1).each do |adj|
+                            #    locations.pop
+                            #end
+
+                            unless t_word.blank?
+                                self.possible_locations(t_word + ' ' + next_word.normal).each do |pl|
+                                    locations << pl
+                                end
+                            end
+
+                            skip_iterations += 1
+                            break
+                        end
+                    end
+
+                    if skip_iterations > 0
+                        skip_iterations -= 1
+                        next
+                    end
                 end
 
                 adjective_locations = 0
@@ -152,35 +221,6 @@ class Lemmatizer
                     end
                 end
 
-                next_word = normal_sentence[index + 1]
-
-                if next_word.present? and @rule_classes.include?(@morph.get_word_class(w))
-                    # check for areas or regions
-                    @administrative_units.each do |adm_unit|
-                        if next_word.normal == adm_unit[0]
-                            t_word = @morph.transform_word(w.lemma, w.rule, adm_unit[1])
-
-                            # delete adjective locations if there is area keyword after it
-                            0.upto(adjective_locations - 1).each do |adj|
-                                locations.pop
-                            end
-
-                            unless t_word.blank?
-                                self.possible_locations(t_word + ' ' + next_word.normal).each do |pl|
-                                    locations << pl
-                                end
-                            end
-
-                            skip_iterations += 1
-                            break
-                        end
-                    end
-
-                    if skip_iterations > 0
-                        next
-                    end
-                end
-
                 # check for words with modificators
                 # i.e. North Korea, South Korea
                 if next_word.present? and @rule_classes.include?(@morph.get_word_class(next_word))
@@ -212,41 +252,6 @@ class Lemmatizer
 
                         self.possible_locations(w.normal).each do |pl|
                             locations << pl
-                        end
-                    end
-                else
-                    # check user rules
-                    if @rule_classes.include?(@morph.get_word_class(w))
-                        user_rules = UserRules.where('rule ~* ?', "^#{w.normal}$|^#{w.normal}[,]")
-
-                        if user_rules.present?
-                            user_rules.each do |ur|
-                                rule_words = ur.rule.split(',')
-
-                                rw_ind = 0
-                                tmp_word = w.normal
-                                while rw_ind < rule_words.count and tmp_word == rule_words[rw_ind]
-                                    tmp_word = normal_sentence[index + 1]
-                                    rw_ind += 1
-                                end
-
-                                if rw_ind == rule_words.count
-                                    if ur.ruletype == PLACE
-                                        loc = get_location(ur.referent)
-                                        loc.name = UnicodeUtils.upcase(ur.toponym)
-                                        loc.source = USER_RULES
-                                        locations << loc
-                                    else
-                                        skip_iterations += rule_words.count - 1
-                                    end
-
-                                    break
-                                end
-                            end
-
-                            if skip_iterations > 0
-                                next
-                            end
                         end
                     end
                 end
@@ -330,7 +335,7 @@ class Lemmatizer
                         is_areas = true
                     end
 
-                    if location.fclass == POPULATION_CLASS
+                    if location.category != WORLD_POPULATION and location.fclass == POPULATION_CLASS
                         is_populations = true
                         if location.population > max_population
                             max_population = location.population
