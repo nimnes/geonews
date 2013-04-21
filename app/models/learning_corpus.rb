@@ -1,9 +1,80 @@
+# encoding: utf-8
+require 'benchmark'
+
 class LearningCorpus < ActiveRecord::Base
     attr_accessible :context, :entryid, :referents, :toponym, :persons, :entrydate
 
     CORPUS_SIZE = 2000
     MIN_CORPUS_SIZE = 500
     MIN_SIMILARITY = 0.55
+
+    @context_terms = Containers::Trie.new
+    @persons_terms = Containers::Trie.new
+    @docs_count = 0
+
+    # count documents frequency of terms for cosine similarity with tf-idf
+    def self.count_df
+        time = Benchmark.realtime do
+            @docs_count = LearningCorpus.count
+
+            LearningCorpus.all.each do |lc|
+                c_terms = lc.context.split(',').uniq
+                p_terms = lc.persons.split(',').uniq
+
+                c_terms.each do |term|
+                    add_context_term(term)
+                end
+
+                p_terms.each do |term|
+                    add_persons_term(term)
+                end
+            end
+        end
+
+        puts "[LEARNING] document frequencies were counted in #{'%.3f' % time} seconds"
+    end
+
+    def self.add_context_term(term)
+        if @context_terms.has_key?(term)
+            @context_terms[term] += 1
+        else
+            @context_terms[term] = 1
+        end
+    end
+
+    def self.add_persons_term(term)
+        if @persons_terms.has_key?(term)
+            @persons_terms[term] += 1
+        else
+            @persons_terms[term] = 1
+        end
+    end
+
+    def self.add_document_terms(c_terms, p_terms)
+        c_terms.uniq.each do |term|
+            add_context_term(term)
+        end
+
+        p_terms.uniq.each do |term|
+            add_persons_term(term)
+        end
+    end
+
+    def self.context_idf(term)
+        if @context_terms.has_key?(term)
+            return Math.log10(@docs_count / @context_terms.get(term))
+        else
+            return 1
+        end
+    end
+
+    def self.persons_idf(term)
+        if @persons_terms.has_key?(term)
+            return Math.log10(@docs_count / @persons_terms.get(term))
+        else
+            return 1
+        end
+    end
 
     def self.add_entry(context, toponym, referents, entry_persons, entry_id)
         context_str = ''
@@ -25,10 +96,14 @@ class LearningCorpus < ActiveRecord::Base
             persons_str = persons_str[0...-1]
         end
 
+        self.add_document_terms(context, entry_persons)
+
         # delete first record (oldest) and add new one to the end
         # it is needed for keeping constant size of Learning corpus
-        if LearningCorpus.count > CORPUS_SIZE
+        if @docs_count >= CORPUS_SIZE
             LearningCorpus.first.delete
+        else
+            @docs_count += 1
         end
 
         LearningCorpus.create!(
@@ -42,14 +117,14 @@ class LearningCorpus < ActiveRecord::Base
     end
 
     def self.consistent?
-        LearningCorpus.count >= MIN_CORPUS_SIZE
+        @docs_count >= MIN_CORPUS_SIZE
     end
 
     def self.get_similar_entries(text)
         similar_entries = []
 
         LearningCorpus.all.each do |item|
-            vectors = self.vectorize(item.context.split(','), text)
+            vectors = self.vectorize_context(item.context.split(','), text)
 
             cos_similarity = self.cosine_similarity(vectors.first, vectors.last)
             if cos_similarity >= MIN_SIMILARITY
@@ -69,7 +144,7 @@ class LearningCorpus < ActiveRecord::Base
                 next
             end
 
-            vectors = self.vectorize(item.persons.split(','), persons_arr)
+            vectors = self.vectorize_persons(item.persons.split(','), persons_arr)
 
             cos_similarity = self.cosine_similarity(vectors.first, vectors.last)
 
@@ -93,7 +168,7 @@ class LearningCorpus < ActiveRecord::Base
 
     # create vectors for two texts
     # it will be used later for cosine similarity
-    def self.vectorize(a, b)
+    def self.vectorize_context(a, b)
         tokens = []
 
         a.each do |t|
@@ -115,11 +190,44 @@ class LearningCorpus < ActiveRecord::Base
 
         tokens.each_with_index do |t, index|
             if a.include?(t)
-                a_vec[index] += a.count(t)
+                a_vec[index] += a.count(t) * context_idf(t)
             end
 
             if b.include?(t)
-                b_vec[index] += b.count(t)
+                b_vec[index] += b.count(t) * context_idf(t)
+            end
+        end
+
+        return [a_vec, b_vec]
+    end
+
+    def self.vectorize_persons(a, b)
+        tokens = []
+
+        a.each do |t|
+            unless tokens.include?(t)
+                tokens << t
+            end
+        end
+
+        b.each do |t|
+            unless tokens.include?(t)
+                tokens << t
+            end
+        end
+
+        a_vec = Array.new(tokens.count, 0)
+        b_vec = Array.new(tokens.count, 0)
+
+        tokens = tokens.sort_by {|x| x}
+
+        tokens.each_with_index do |t, index|
+            if a.include?(t)
+                a_vec[index] += a.count(t) * persons_idf(t)
+            end
+
+            if b.include?(t)
+                b_vec[index] += b.count(t) * persons_idf(t)
             end
         end
 

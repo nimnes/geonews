@@ -444,12 +444,21 @@ class Morph
         rule1 = @rules[word1.rule][word1.rule_part]
         info1 = @gramtab[rule1.gram][1]
 
-        if @gramtab[rule1[1]][0] != 'П'
+        if @gramtab[rule1[1]][0] != 'П' and @gramtab[rule1[1]][0] != 'ПРЕДЛ'
             return true
         end
 
         rule2 = @rules[word2.rule][word2.rule_part]
         info2 = @gramtab[rule2.gram][1]
+
+        # for this articles word couldn't be in tvorytelnyi padezh
+        if @gramtab[rule1[1]][0] == 'ПРЕДЛ'
+            if ['НА', 'В'].include?(word1.normal) and @gramtab[rule2.gram][1].include?('тв')
+                return false
+            else
+                return true
+            end
+        end
 
         if info1[0...8] == info2[0...8]
             true

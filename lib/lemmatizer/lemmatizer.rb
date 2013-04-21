@@ -27,8 +27,6 @@ class Lemmatizer
           ' обл.'  => ' область'
         }
 
-        @morph = Morph.new()
-        @morph.load_dictionary('./dicts/morphs.mrd', './dicts/rgramtab.tab')
         @administrative_units = [
             %w(ОБЛАСТЬ ЖР), %w(КРАЙ МР), %w(РАЙОН МР),
             %w(РЕГИОН МР), %w(ПЛОЩАДЬ ЖР),
@@ -40,8 +38,12 @@ class Lemmatizer
         ]
 
         @geo_modificators = ['ДАЛЬНИЙ', 'НИЖНИЙ', 'ВЕЛИКИЙ', 'СЕВЕРНЫЙ', 'ЮЖНЫЙ']
-
         @rule_classes = ['NOUN', 'С', 'ADJECTIVE', 'П', 'КР_ПРИЛ']
+
+        @morph = Morph.new()
+        @morph.load_dictionary('./dicts/morphs.mrd', './dicts/rgramtab.tab')
+
+        LearningCorpus.count_df
     end
 
     def inspect
