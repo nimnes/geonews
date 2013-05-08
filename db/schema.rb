@@ -11,7 +11,7 @@
 #
 # It's strongly recommended to check this file into your version control system.
 
-ActiveRecord::Schema.define(:version => 20130417193455) do
+ActiveRecord::Schema.define(:version => 20130507191558) do
 
   create_table "countries", :force => true do |t|
     t.string   "code"
@@ -77,7 +77,7 @@ ActiveRecord::Schema.define(:version => 20130417193455) do
     t.string   "toponym"
     t.text     "context"
     t.text     "referents"
-    t.string   "entryid"
+    t.text     "entryid"
     t.datetime "created_at", :null => false
     t.datetime "updated_at", :null => false
     t.text     "persons"

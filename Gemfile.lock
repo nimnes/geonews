@@ -77,6 +77,7 @@ GEM
     multi_json (1.5.0)
     nokogiri (1.4.7)
     nokogiri (1.4.7-x86-mingw32)
+    parallel (0.6.4)
     pg (0.14.1)
     pg (0.14.1-x86-mingw32)
     polyglot (0.3.3)
@@ -151,6 +152,7 @@ DEPENDENCIES
   googlecharts
   jquery-rails (= 2.1.4)
   json
+  parallel
   pg
   rails (= 3.2.11)
   rails_db_dump

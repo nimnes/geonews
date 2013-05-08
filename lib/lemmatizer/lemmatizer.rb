@@ -43,7 +43,7 @@ class Lemmatizer
         @morph = Morph.new()
         @morph.load_dictionary('./dicts/morphs.mrd', './dicts/rgramtab.tab')
 
-        LearningCorpus.count_df
+        LearningCorpus.create_corpus
     end
 
     def inspect
@@ -87,6 +87,34 @@ class Lemmatizer
 
                 next_word = normal_sentence[index + 1]
 
+                # check for areas or regions
+                if next_word.present? and @rule_classes.include?(@morph.get_word_class(w))
+                    @administrative_units.each do |adm_unit|
+                        if next_word.normal == adm_unit[0]
+                            t_word = @morph.transform_word(w.lemma, w.rule, adm_unit[1])
+
+                            ## delete adjective locations if there is area keyword after it
+                            #0.upto(adjective_locations - 1).each do |adj|
+                            #    locations.pop
+                            #end
+
+                            unless t_word.blank?
+                                self.possible_locations(t_word + ' ' + next_word.normal).each do |pl|
+                                    locations << pl
+                                end
+                            end
+
+                            skip_iterations += 1
+                            break
+                        end
+                    end
+
+                    if skip_iterations > 0
+                        skip_iterations -= 1
+                        next
+                    end
+                end
+
                 # check user rules
                 if @rule_classes.include?(@morph.get_word_class(w))
                     user_rules = UserRules.where('rule ~* ?', "^#{w.normal}$|^#{w.normal}[,]")
@@ -122,34 +150,6 @@ class Lemmatizer
                                 end
                             end
                         end
-                    end
-                end
-
-                # check for areas or regions
-                if next_word.present? and @rule_classes.include?(@morph.get_word_class(w))
-                    @administrative_units.each do |adm_unit|
-                        if next_word.normal == adm_unit[0]
-                            t_word = @morph.transform_word(w.lemma, w.rule, adm_unit[1])
-
-                            ## delete adjective locations if there is area keyword after it
-                            #0.upto(adjective_locations - 1).each do |adj|
-                            #    locations.pop
-                            #end
-
-                            unless t_word.blank?
-                                self.possible_locations(t_word + ' ' + next_word.normal).each do |pl|
-                                    locations << pl
-                                end
-                            end
-
-                            skip_iterations += 1
-                            break
-                        end
-                    end
-
-                    if skip_iterations > 0
-                        skip_iterations -= 1
-                        next
                     end
                 end
 
@@ -282,12 +282,16 @@ class Lemmatizer
                 if similar_entries.present?
                     best = similar_entries.first
 
-                    loc = get_location(best[0].referents.split(';').first)
-                    loc.name = best[0].toponym
+                    entry = LearningCorpus.where('entryid = ?', best[0]).first
 
-                    loc.source = LEARNING
+                    if entry.present?
+                        loc = get_location(entry.referents.split(';').first)
+                        loc.name = entry.toponym
 
-                    best_locations << [loc, best[1]]
+                        loc.source = LEARNING
+
+                        best_locations << [loc, best[1]]
+                    end
                 else
                     # by persons from entry
                     similar_person_entries = LearningCorpus.get_entries_with_persons(persons)
@@ -483,18 +487,6 @@ class Lemmatizer
         # other countries and their capitals
         countries = Countries.where('name ~* ?', "^#{location}$|^#{location}[,]|[,]#{location}[,]|[,]#{location}$")
         if countries.present?
-        #    capitals = Countries.where('capital ~* ?', "^#{location}$|^#{location}[,]|[,]#{location}[,]|[,]#{location}$")
-        #
-        #    capitals.each do |capital|
-        #        loc = Location.new
-        #        loc.name = location
-        #        loc.geonameid = capital.id
-        #        loc.category = COUNTRY
-        #        loc.source = COUNTRIES_DB
-        #        loc.population = 0
-        #        locations << loc
-        #    end
-        #else
             countries.each do |country|
                 loc = Location.new
                 loc.name = location
@@ -505,9 +497,22 @@ class Lemmatizer
                 loc.population = 0
                 locations << loc
             end
+        #else
+        #    capitals = Countries.where('capital ~* ?', "^#{location}$|^#{location}[,]|[,]#{location}[,]|[,]#{location}$")
+        #
+        #    capitals.each do |capital|
+        #        loc = Location.new
+        #        loc.name = location
+        #        loc.geonameid = capital.id
+        #        loc.category = WORLD_POPULATION
+        #        loc.fclass = capital.code
+        #        loc.source = COUNTRIES_DB
+        #        loc.population = 0
+        #        locations << loc
+        #    end
         end
-
-        if locations.empty?
+        #
+        ##if locations.empty?
             # not russian big cities
             cities = WorldCities.where('name ~* ?', "^#{location}$|^#{location}[,]|[,]#{location}[,]|[,]#{location}$")
 
@@ -522,7 +527,7 @@ class Lemmatizer
                 loc.population = city.population
                 locations << loc
             end
-        end
+        ##end
 
         locations
     end

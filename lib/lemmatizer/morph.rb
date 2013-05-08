@@ -42,7 +42,6 @@ class Morph
             read_gramtab(gramtab_file)
         end
         puts "[LEM] gramtab file was loaded in #{'%.3f' % time} seconds"
-
     end
 
     def read_section(file)
@@ -179,8 +178,12 @@ class Morph
         is_quotes = false
 
         # word in quotes shouldn't be recognized as location
-        if (word.start_with?("\"") and word.end_with?("\"")) or
-            (word.start_with?("'") and word.end_with?("'"))
+        #if (word.start_with?("\"") and word.end_with?("\"")) or
+        #    (word.start_with?("'") and word.end_with?("'"))
+        #    is_quotes = true
+        #end
+
+        if word.include?("'") or word.include?('"')
             is_quotes = true
         end
 
