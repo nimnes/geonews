@@ -70,8 +70,11 @@ class LearningCorpus < ActiveRecord::Base
         # save only persons who meet in few feed entries
         # and return only most popular location
         if similar_entries.count > 1
-            similar_entries.each do |entry, score|
-                possible_locations[entry.referents.split(';').first] = entry.toponym
+            similar_entries.each do |entryid, score|
+                entry = LearningCorpus.where('entryid = ?', entryid.to_s).first
+                if entry.present?
+                    possible_locations[entry.referents.split(';').first] = entry.toponym
+                end
             end
         end
 

@@ -8,7 +8,7 @@ class FeedEntry < ActiveRecord::Base
 
     def self.add_feed(feed_url, feed_category)
         feed = Feedzirra::Feed.fetch_and_parse(feed_url)
-        add_entries(feed.entries, feed.category)
+        add_entries(feed.entries, feed_category)
 
         # save feeds in database for future updating
         if Feeds.where('feed_url = ?', feed_url).empty?
@@ -53,9 +53,10 @@ class FeedEntry < ActiveRecord::Base
             feed_to_update.last_modified = feed.last_modified
 
             updated_feed = Feedzirra::Feed.update(feed_to_update)
-            add_entries(updated_feed.new_entries, feed.category) if updated_feed.updated?
-
-            feed.update_attributes(:last_modified => updated_feed.last_modified)
+            if updated_feed.present?
+                add_entries(updated_feed.new_entries, feed.category) if updated_feed.updated?
+                feed.update_attributes(:last_modified => updated_feed.last_modified)
+            end
         end
 
         # delete old news
