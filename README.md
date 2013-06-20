@@ -18,6 +18,7 @@ own Countries with capitals DB and World cities DB  (http://download.geonames.or
 At first you must create databases and import data from csv files
 
 ```ruby
+rake db:create:all
 rake db:migrate
 rake csv:import
 ```

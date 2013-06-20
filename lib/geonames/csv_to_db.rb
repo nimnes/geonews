@@ -20,7 +20,7 @@ def import_countries
 end
 
 def import_world_cities
-    CSV.foreach('./dicts/cities15000_parsed.csv', :headers => true, :col_sep => ';') do |row|
+    CSV.foreach('./dicts/csv/world_cities.csv', :headers => true, :col_sep => ';') do |row|
         WorldCities.create!(row.to_hash)
 
     end

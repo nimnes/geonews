@@ -30,11 +30,11 @@ ActiveRecord::Schema.define(:version => 20130507191558) do
     t.datetime "published_at"
     t.text     "guid"
     t.string   "location"
-    t.datetime "created_at",   :null => false
-    t.datetime "updated_at",   :null => false
     t.string   "tags"
     t.string   "category"
     t.string   "source"
+    t.datetime "created_at",   :null => false
+    t.datetime "updated_at",   :null => false
     t.integer  "feedcategory"
   end
 
@@ -50,18 +50,6 @@ ActiveRecord::Schema.define(:version => 20130507191558) do
   end
 
   create_table "geonames", :force => true do |t|
-    t.string   "geonameid"
-    t.text     "name"
-    t.float    "latitude"
-    t.float    "longitude"
-    t.string   "fclass"
-    t.string   "acode"
-    t.integer  "population"
-    t.datetime "created_at", :null => false
-    t.datetime "updated_at", :null => false
-  end
-
-  create_table "geonames2s", :force => true do |t|
     t.string   "geonameid"
     t.text     "name"
     t.float    "latitude"

@@ -8,7 +8,10 @@ class FeedEntry < ActiveRecord::Base
 
     def self.add_feed(feed_url, feed_category)
         feed = Feedzirra::Feed.fetch_and_parse(feed_url)
-        add_entries(feed.entries, feed_category)
+
+        if feed.class.name == 'Fixnum'
+            return
+        end
 
         # save feeds in database for future updating
         if Feeds.where('feed_url = ?', feed_url).empty?
